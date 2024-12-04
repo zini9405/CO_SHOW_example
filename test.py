@@ -75,3 +75,18 @@ for x_sub_dir in tqdm(x_sub_dirs, desc="Processing directories"):
         x_df.to_csv(output_path, index=False)
 
 print(f"모든 파일 처리가 완료되었습니다. 결과는 {output_base_dir}에 저장되었습니다.")
+
+epi_b_base_path = 'C:/Users/SKsiltron/Desktop/SFQR/epi_before_process'
+epi_a_base_path = 'C:/Users/SKsiltron/Desktop/SFQR/epi_after_process'
+x_para_base_path = 'C:/Users/SKsiltron/Desktop/SFQR/x_para_process'
+save_path = 'C:/Users/SKsiltron/Desktop/SFQR/final_dataset'
+
+각 base_path안에 다수의 csv파일이 존재해. 
+예) epi_b_base_path에 2020_10_11_8600.csv, 2020_11_12_8600.csv, 2020_12_01_8600.csv, ...
+epi_a_base_path에 2020_10_11_1600.csv, 2020_11_12_1600.csv, 2020_12_01_1600.csv, ...
+x_para_base_path에 2020_10_11_2600.csv, 2020_11_12_2600.csv, 2020_12_01_2600.csv, ...
+
+나는 x_para_base_path, epi_a_base_pat, epi_b_base_path csv 파일 이름이 동일한(날짜) 파일끼리 묶어서 불려오고 싶어.
+그리고 x_para_base_path의 csv에 WAF_ID와 epi_a_base_pat의 csv에 WAFER_ID와 동일하면, epi_a_base_pat의 csv에 SFQR_AFS2열값을 x_para_base_path의 csv에 붙치고 싶어.
+마찬가지로, 그리고 x_para_base_path의 csv에 WAF_ID와 epi_b_base_pat의 csv에 WAFER_ID와 동일하면, epi_b_base_pat의 csv에 SFQR_AFS2열값을 x_para_base_path의 csv에 붙치고 싶어.
+최종적으로, 하나의 x파일로 만들고 싶어. 구현해줘.
