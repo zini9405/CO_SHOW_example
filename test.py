@@ -68,3 +68,7 @@ final_output_path = os.path.join(save_path, 'final_dataset.csv')
 final_df.to_csv(final_output_path, index=False)
 
 print(f"모든 파일 처리가 완료되었습니다. 결과는 {final_output_path}에 저장되었습니다.")
+
+
+
+final_dataset 디렉터리에서 .CSV들 다 취합하고 STEP_ID와 SFQR_AFS2 열에 빈값인 행 제거하고 'Unnamed:0' 열 제거하고 EQP_ID 열 그룹헤서 저장해줘.
