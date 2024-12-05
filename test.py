@@ -1,43 +1,25 @@
-import os
-import pandas as pd
-from collections import Counter
+STEP 순서
 
-# wa 디렉토리 내 모든 .csv 파일 가져오기
-directory = "wa"
-csv_files = [os.path.join(directory, file) for file in os.listdir(directory) if file.endswith('.csv')]
+0	Prestep
+1	PURGE
+2	RAMP_UP
+3	BAKE1
+4	BAKE2
+5	PRE_ETCH
+6	PRE_DEPO
+7	DEPO
+8	POST_PURGE
+9	COOL1
+10	COOL2
+11	COOL3
+12	Poststep
 
-# 관심 있는 STEP_NAME 목록
-step_name_list = {
-    'BAKE1', 'BAKE2', 'BAKE3',
-    'COOL', 'COOL 1', 'COOL 2', 'COOL 3', 'COOL1', 'COOL2', 'COOL3',
-    'DEPO',
-    'ETCH',
-    'POST PURGE', 'POST_PURGE',
-    'PRE DEPO', 'PREDEPO', 'PRE_DEPO', 'Pre DEPO',
-    'PRE_ETCH', 'PRE_ETCH1', 'PRE_ETCH2', 'PRE ETCH', 'PRE ETCH1',
-    'PRE_VENT', 'PRE_VETN',
-    'PURGE', 'PURGE 1', 'PURGE 2', 'PURGE1', 'PURGE2', 'PURGE3', 'PURGE4',
-    'Poststep',
-    'Prestep',
-    'RAMP UP', 'RAMP_UP', 'STAB'
-}
+위에는 STEP 순서야.
+나는 불필요한 값을 제거하고 잘못된 값들을 수정할거야. 그리고 WAP_ID열로 그룹해서 STEP 순서대로 정렬할거야. 만약에 STEP 순서인 0에서 12까지 값이 없으면 채워줘.
 
-# STEP_NAME 개수 카운트
-step_name_counter = Counter()
-
-for file in csv_files:
-    print(f"Processing file: {file}")  # 진행 상황 확인
-    # CSV 파일 읽기
-    df = pd.read_csv(file, usecols=['STEP_NAME'])
-    # 관심 있는 STEP_NAME만 필터링하여 카운트
-    for step_name in step_name_list:
-        step_name_counter[step_name] += (df['STEP_NAME'] == step_name).sum()
-
-# 결과 출력
-for step_name, count in step_name_counter.items():
-    print(f"{step_name}: {count}")
-
-# 결과를 CSV 파일로 저장 (필요한 경우)
-output_file = "step_name_counts.csv"
-pd.DataFrame.from_dict(step_name_counter, orient='index', columns=['Count']).to_csv(output_file)
-print(f"결과가 {output_file}에 저장되었습니다.")
+1. WAP_ID열로 그룹
+2. 그룹된 값에 'STEP_NAME'열에 'BAKE3', 'COOL', 'COOL 1', 'COOL 2', 'COOL 3', 'PURGE 1', 'PURGE 2', 'PURGE1', 'PURGE2', 'PURGE3', 'PURGE4', 'STAB' 하나라도 포함되어 있으면 그룹 삭제
+3. 'POST PURGE' -> 'POST_PURGE' / 'PRE DEPO' -> PRE_DEPO / 'PREDEPO' -> 'PRE_DEPO' / 'Pre DEPO' -> 'PRE_DEPO' / 'PRE_VENT' -> 'PRE_DEPO' / 'PRE_VETN' -> 'PRE_DEPO' / 'PRE ETCH' -> 'PRE_ETCH' / 'PRE ETCH1' -> 'PRE_ETCH' / 'PRE_ETCH1' -> 'PRE_ETCH' / 'PRE_ETCH2' -> 'PRE_ETCH'
+ / 'ETCH' -> 'PRE_ETCH' / 'RAMP UP' -> 'RAMP_UP'로  이름 변경
+4. 정리된 그룹별로  'STEP_NAME'에 STEP 순서인 0에서 12까지 값이 없으면 채워줘. 단, 'EQP_ID','MODULE_NAME','WAF_ID','RECIPE_ID,'HST_REG_DTTM' 값은 동일하게 채워주고 나머지 열은 -20으로 채워줘
+5. 그룹으로 나눠진 값들을 다시 하나로 합쳐줘
