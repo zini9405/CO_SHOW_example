@@ -1,54 +1,17 @@
-import pandas as pd
+---------------------------------------------------------------------------
+KeyError                                  Traceback (most recent call last)
+Cell In[48], line 28
+     26 # 추가된 행과 원래 데이터를 합치기
+     27 print(pd.DataFrame(rows_to_add))
+---> 28 rows_to_add_df = pd.DataFrame(rows_to_add).set_index('STEP_ID')
+     29 group = pd.concat([group, rows_to_add_df]).sort_index()
+     30 grouped.append(group)
 
-# 예시 데이터
-data = {
-    'EQP_ID': ['E1', 'E1', 'E1', 'E2'],
-    'MODULE_NAME': ['M1', 'M1', 'M2', 'M2'],
-    'WAF_ID': ['W1', 'W1', 'W1', 'W2'],
-    'RECIPE_ID': ['R1', 'R1', 'R1', 'R2'],
-    'STEP_ID': [0, 1, 3, 0],
-    'STEP_NAME': ['Step0', 'Step1', 'Step3', 'Step0'],
-    'HST_REG_DTTM': ['20240101070004090000', '20240101070004090000', '20240101070004090000', '20240202080005090000'],
-    'MEASURE_1': [10, 20, 30, 40],
-    'MEASURE_2': [15, 25, 35, 45],
-}
-df = pd.DataFrame(data)
+File c:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\core\frame.py:6122, in DataFrame.set_index(self, keys, drop, append, inplace, verify_integrity)
+   6119                 missing.append(col)
+   6121 if missing:
+-> 6122     raise KeyError(f"None of {missing} are in the columns")
+   6124 if inplace:
+   6125     frame = self
 
-# STEP_ID 0부터 13까지 보장하도록 채우기
-all_steps = list(range(14))  # 0부터 13까지의 값
-grouped = []
-
-for waf_id, group in df.groupby('WAF_ID'):
-    group = group.set_index('STEP_ID')  # STEP_ID를 인덱스로 설정
-    missing_steps = set(all_steps) - set(group.index)  # 누락된 STEP_ID 찾기
-    rows_to_add = []
-    for step in missing_steps:
-        # 누락된 STEP_ID에 대해 값 채우기
-        new_row = {
-            'EQP_ID': group['EQP_ID'].iloc[0],
-            'MODULE_NAME': group['MODULE_NAME'].iloc[0],
-            'WAF_ID': waf_id,
-            'RECIPE_ID': group['RECIPE_ID'].iloc[0],
-            'STEP_ID': step,
-            'STEP_NAME': f'Step{step}',
-            'HST_REG_DTTM': group['HST_REG_DTTM'].iloc[0],
-        }
-        # 나머지 값은 -1로 채우기
-        for col in df.columns:
-            if col not in new_row:
-                new_row[col] = -1
-        rows_to_add.append(new_row)
-    
-    # 추가된 행과 원래 데이터를 합치기
-    rows_to_add_df = pd.DataFrame(rows_to_add).set_index('STEP_ID')
-    group = pd.concat([group, rows_to_add_df]).sort_index()
-    grouped.append(group)
-
-# 다시 병합
-df_filled = pd.concat(grouped).reset_index()
-
-# WAF_ID 병합
-df_filled['WAF_ID'] = df_filled['WAF_ID'].astype(str).groupby(df_filled['WAF_ID']).transform('first')
-
-# 결과 출력
-print(df_filled)
+KeyError: "None of ['STEP_ID'] are in the columns"
