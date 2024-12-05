@@ -1,30 +1,22 @@
-MemoryError                               Traceback (most recent call last)
-Cell In[51], line 31
-     28     grouped.append(group)
-     30 # 다시 병합
----> 31 df_filled = pd.concat(grouped).reset_index(drop=True)
-     33 # 결과 출력
-     34 print(df_filled)
+import os
+import pandas as pd
 
-File c:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\core\frame.py:6417, in DataFrame.reset_index(self, level, drop, inplace, col_level, col_fill, allow_duplicates, names)
-   6415     new_obj = self
-   6416 else:
--> 6417     new_obj = self.copy(deep=None)
-   6418 if allow_duplicates is not lib.no_default:
-   6419     allow_duplicates = validate_bool_kwarg(allow_duplicates, "allow_duplicates")
+# WAF_ID 디렉토리 경로 지정
+directory = "waf_id"  # 디렉토리 이름 수정 필요
 
-File c:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\core\generic.py:6811, in NDFrame.copy(self, deep)
-   6662 @final
-   6663 def copy(self, deep: bool_t | None = True) -> Self:
-   6664     """
-   6665     Make a copy of this object's indices and data.
-   6666 
-   (...)
-   6809     dtype: int64
-   6810     """
-...
-    289 if not isinstance(arrs, tuple):
-    290     arrs = (arrs,)
---> 291 return _nx.concatenate(arrs, 0, dtype=dtype, casting=casting)
+# 디렉토리 내 모든 .csv 파일 리스트 가져오기
+csv_files = [os.path.join(directory, file) for file in os.listdir(directory) if file.endswith('.csv')]
 
-MemoryError: Unable to allocate 5.23 GiB for an array with shape (32, 21941622) and data type float64
+# 파일 합치기
+combined_df = pd.DataFrame()
+
+for file in csv_files:
+    # 각 파일 읽기
+    df = pd.read_csv(file)
+    combined_df = pd.concat([combined_df, df], ignore_index=True)
+
+# 결과 출력
+print(combined_df)
+
+# 합친 결과를 CSV 파일로 저장 (필요한 경우)
+combined_df.to_csv("combined_waf_id.csv", index=False)
