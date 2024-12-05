@@ -47,3 +47,23 @@ df_filled['WAF_ID'] = df_filled['WAF_ID'].astype(str).groupby(df_filled['WAF_ID'
 
 # 결과 출력
 print(df_filled)
+
+AttributeError                            Traceback (most recent call last)
+Cell In[35], line 25
+     23             if col not in new_row:
+     24                 new_row[col] = -1
+---> 25         group = group.append(pd.DataFrame([new_row]).set_index('STEP_ID'))
+     26     grouped.append(group.sort_index())  # STEP_ID 순서대로 정렬
+     28 # 다시 병합
+
+File c:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\core\generic.py:6299, in NDFrame.__getattr__(self, name)
+   6292 if (
+   6293     name not in self._internal_names_set
+   6294     and name not in self._metadata
+   6295     and name not in self._accessors
+   6296     and self._info_axis._can_hold_identifiers_and_holds_name(name)
+   6297 ):
+   6298     return self[name]
+-> 6299 return object.__getattribute__(self, name)
+
+AttributeError: 'DataFrame' object has no attribute 'append'
