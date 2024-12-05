@@ -21,6 +21,7 @@ grouped = []
 for waf_id, group in df.groupby('WAF_ID'):
     group = group.set_index('STEP_ID')  # STEP_ID를 인덱스로 설정
     missing_steps = set(all_steps) - set(group.index)  # 누락된 STEP_ID 찾기
+    rows_to_add = []
     for step in missing_steps:
         # 누락된 STEP_ID에 대해 값 채우기
         new_row = {
@@ -36,8 +37,12 @@ for waf_id, group in df.groupby('WAF_ID'):
         for col in df.columns:
             if col not in new_row:
                 new_row[col] = -1
-        group = group.append(pd.DataFrame([new_row]).set_index('STEP_ID'))
-    grouped.append(group.sort_index())  # STEP_ID 순서대로 정렬
+        rows_to_add.append(new_row)
+    
+    # 추가된 행과 원래 데이터를 합치기
+    rows_to_add_df = pd.DataFrame(rows_to_add).set_index('STEP_ID')
+    group = pd.concat([group, rows_to_add_df]).sort_index()
+    grouped.append(group)
 
 # 다시 병합
 df_filled = pd.concat(grouped).reset_index()
@@ -47,23 +52,3 @@ df_filled['WAF_ID'] = df_filled['WAF_ID'].astype(str).groupby(df_filled['WAF_ID'
 
 # 결과 출력
 print(df_filled)
-
-AttributeError                            Traceback (most recent call last)
-Cell In[35], line 25
-     23             if col not in new_row:
-     24                 new_row[col] = -1
----> 25         group = group.append(pd.DataFrame([new_row]).set_index('STEP_ID'))
-     26     grouped.append(group.sort_index())  # STEP_ID 순서대로 정렬
-     28 # 다시 병합
-
-File c:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\core\generic.py:6299, in NDFrame.__getattr__(self, name)
-   6292 if (
-   6293     name not in self._internal_names_set
-   6294     and name not in self._metadata
-   6295     and name not in self._accessors
-   6296     and self._info_axis._can_hold_identifiers_and_holds_name(name)
-   6297 ):
-   6298     return self[name]
--> 6299 return object.__getattribute__(self, name)
-
-AttributeError: 'DataFrame' object has no attribute 'append'
