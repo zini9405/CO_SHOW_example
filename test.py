@@ -1,50 +1,30 @@
-import pandas as pd
+MemoryError                               Traceback (most recent call last)
+Cell In[51], line 31
+     28     grouped.append(group)
+     30 # 다시 병합
+---> 31 df_filled = pd.concat(grouped).reset_index(drop=True)
+     33 # 결과 출력
+     34 print(df_filled)
 
-# 예시 데이터
-data = {
-    'EQP_ID': ['E1', 'E1', 'E1', 'E2'],
-    'MODULE_NAME': ['M1', 'M1', 'M2', 'M2'],
-    'WAF_ID': ['W1', 'W1', 'W1', 'W2'],
-    'RECIPE_ID': ['R1', 'R1', 'R1', 'R2'],
-    'STEP_ID': [0, 1, 3, 0],
-    'STEP_NAME': ['Step0', 'Step1', 'Step3', 'Step0'],
-    'HST_REG_DTTM': ['20240101070004090000', '20240101070004090000', '20240101070004090000', '20240202080005090000'],
-    'MEASURE_1': [10, 20, 30, 40],
-    'MEASURE_2': [15, 25, 35, 45],
-}
-df = pd.DataFrame(data)
+File c:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\core\frame.py:6417, in DataFrame.reset_index(self, level, drop, inplace, col_level, col_fill, allow_duplicates, names)
+   6415     new_obj = self
+   6416 else:
+-> 6417     new_obj = self.copy(deep=None)
+   6418 if allow_duplicates is not lib.no_default:
+   6419     allow_duplicates = validate_bool_kwarg(allow_duplicates, "allow_duplicates")
 
-# STEP_ID 0부터 13까지 보장하도록 채우기
-all_steps = list(range(14))  # 0부터 13까지의 값
-grouped = []
+File c:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\core\generic.py:6811, in NDFrame.copy(self, deep)
+   6662 @final
+   6663 def copy(self, deep: bool_t | None = True) -> Self:
+   6664     """
+   6665     Make a copy of this object's indices and data.
+   6666 
+   (...)
+   6809     dtype: int64
+   6810     """
+...
+    289 if not isinstance(arrs, tuple):
+    290     arrs = (arrs,)
+--> 291 return _nx.concatenate(arrs, 0, dtype=dtype, casting=casting)
 
-for waf_id, group in df.groupby('WAF_ID'):
-    missing_steps = set(all_steps) - set(group['STEP_ID'])  # 누락된 STEP_ID 찾기
-    rows_to_add = []
-    for step in missing_steps:
-        # 누락된 STEP_ID에 대해 값 채우기
-        new_row = {
-            'EQP_ID': group['EQP_ID'].iloc[0],
-            'MODULE_NAME': group['MODULE_NAME'].iloc[0],
-            'WAF_ID': waf_id,
-            'RECIPE_ID': group['RECIPE_ID'].iloc[0],
-            'STEP_ID': step,  # STEP_ID 추가
-            'STEP_NAME': f'Step{step}',
-            'HST_REG_DTTM': group['HST_REG_DTTM'].iloc[0],
-        }
-        # 나머지 값은 -1로 채우기
-        for col in df.columns:
-            if col not in new_row:
-                new_row[col] = -1
-        rows_to_add.append(new_row)
-
-    # 추가된 행 병합
-    rows_to_add_df = pd.DataFrame(rows_to_add)
-    group = pd.concat([group, rows_to_add_df]).sort_values(by='STEP_ID')  # STEP_ID로 정렬
-    grouped.append(group)
-
-# 다시 병합
-df_filled = pd.concat(grouped).reset_index(drop=True)
-
-# 결과 출력
-print(df_filled)
+MemoryError: Unable to allocate 5.23 GiB for an array with shape (32, 21941622) and data type float64
