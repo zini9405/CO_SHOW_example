@@ -1,26 +1,51 @@
-import os
-import pyarrow.csv as pc
-import pyarrow as pa
-import pyarrow.parquet as pq
+csv 파일에 STEP_NAME의 값 목록이야. 그럼 저 목록에 각 몇개 있는지 알려주는 코드 구현해줘.
+{'BAKE1',
+ 'BAKE2',
+ 'BAKE3',
 
-# wa 디렉토리 경로 지정
-directory = "wa"
+ 'COOL',
+ 'COOL 1',
+ 'COOL 2',
+ 'COOL 3',
+ 'COOL1',
+ 'COOL2',
+ 'COOL3',
 
-# wa 디렉토리 내 모든 .csv 파일 가져오기
-csv_files = [os.path.join(directory, file) for file in os.listdir(directory) if file.endswith('.csv')]
+ 'DEPO',
 
-# Arrow로 파일 병합
-tables = []
-for file in csv_files:
-    print(f"Reading file: {file}")  # 진행 상황 확인
-    table = pc.read_csv(file)  # 파일 읽기
-    tables.append(table)
+ 'ETCH',
 
-# 모든 테이블 병합
-combined_table = pa.concat_tables(tables)
+ 'POST PURGE',
+ 'POST_PURGE',
 
-# 결과를 Parquet 형식으로 저장
-output_file = "combined_wa.parquet"
-pq.write_table(combined_table, output_file)
 
-print(f"모든 파일이 {output_file}로 병합되었습니다.")
+ 'PRE DEPO',
+ 'PREDEPO',
+ 'PRE_DEPO',
+ 'Pre DEPO',
+
+ 'PRE_ETCH',
+ 'PRE_ETCH1',
+ 'PRE_ETCH2',
+ 'PRE ETCH',
+ 'PRE ETCH1',
+
+
+ 'PRE_VENT',
+ 'PRE_VETN',
+
+ 'PURGE',
+ 'PURGE 1',
+ 'PURGE 2',
+ 'PURGE1',
+ 'PURGE2',
+ 'PURGE3',
+ 'PURGE4',
+
+ 'Poststep',
+
+ 'Prestep',
+
+ 'RAMP UP',
+ 'RAMP_UP',
+ 'STAB'}
