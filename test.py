@@ -1,5 +1,8 @@
 import pandas as pd
 import os
+from tqdm import tqdm
+
+output_dir_path = 'C:/Users/SKsiltron/Desktop/SFQR/wafer_id_1'
 
 # STEP 순서 정의
 step_order = {
@@ -18,18 +21,76 @@ step_order = {
     12: 'Poststep'
 }
 
-생성된 그룹을 보면, 0부터 12까지 순서가 안 맞아.
+# 불필요한 STEP_NAME 목록
+exclude_step_names = {
+    'BAKE3', 'COOL', 'COOL 1', 'COOL 2', 'COOL 3', 
+    'PURGE 1', 'PURGE 2', 'PURGE1', 'PURGE2', 'PURGE3', 'PURGE4', 
+    'STAB'
+}
 
-0   CENC17           A  3KKLD133SAF0      1.0    S14_CA        0     Prestep   
-1   CENC17           A  3KKLD133SAF0      1.0    S14_CA        1       PURGE   
-2   CENC17           A  3KKLD133SAF0      1.0    S14_CA        2     RAMP_UP   
-3   CENC17           A  3KKLD133SAF0      1.0    S14_CA        3       BAKE1   
-4   CENC17           A  3KKLD133SAF0      1.0    S14_CA        4       BAKE2   
-5   CENC17           A  3KKLD133SAF0      1.0    S14_CA        5    PRE_DEPO   
-6   CENC17           A  3KKLD133SAF0      1.0    S14_CA        6        DEPO   
-7   CENC17           A  3KKLD133SAF0      1.0    S14_CA        7  POST_PURGE   
-8   CENC17           A  3KKLD133SAF0      1.0    S14_CA        8       COOL1   
-9   CENC17           A  3KKLD133SAF0      1.0    S14_CA        9       COOL2   
-10  CENC17           A  3KKLD133SAF0      1.0    S14_CA       10       COOL3   
-11  CENC17           A  3KKLD133SAF0      1.0    S14_CA       11    Poststep   
-12  CENC17           A  3KKLD133SAF0    -20.0    S14_CA       12    Poststep  
+# STEP_NAME 수정 매핑
+rename_map = {
+    'POST PURGE': 'POST_PURGE',
+    'PRE DEPO': 'PRE_DEPO',
+    'PREDEPO': 'PRE_DEPO',
+    'Pre DEPO': 'PRE_DEPO',
+    'PRE_VENT': 'PRE_DEPO',
+    'PRE_VETN': 'PRE_DEPO',
+    'PRE ETCH': 'PRE_ETCH',
+    'PRE ETCH1': 'PRE_ETCH',
+    'PRE ETCH2': 'PRE_ETCH',
+    'ETCH': 'PRE_ETCH',
+    'RAMP UP': 'RAMP_UP'
+}
+
+# 예시 데이터 로드 (wa 디렉토리의 CSV 파일 병합)
+df = data
+
+# 1. WAF_ID 열로 그룹화
+grouped = df.groupby('WAF_ID')
+
+# 결과를 저장할 리스트
+processed_groups = []
+
+for waf_id, group in tqdm(grouped):
+    # 2. 불필요한 STEP_NAME 포함된 그룹 삭제
+    if group['STEP_NAME'].isin(exclude_step_names).any():
+        continue  # 그룹 제외
+    
+    # 3. STEP_NAME 수정
+    group['STEP_NAME'] = group['STEP_NAME'].replace(rename_map)
+    
+    # 4. STEP 순서 보장 (0~12 값 채우기)
+    missing_steps = set(step_order.keys()) - set(group['STEP_ID'])
+    for step in missing_steps:
+        new_row = {
+            'STEP_ID': step,
+            'STEP_NAME': step_order[step],
+            'EQP_ID': group['EQP_ID'].iloc[0],
+            'MODULE_NAME': group['MODULE_NAME'].iloc[0],
+            'WAF_ID': group['WAF_ID'].iloc[0],
+            'RECIPE_ID': group['RECIPE_ID'].iloc[0],
+            'HST_REG_DTTM': group['HST_REG_DTTM'].iloc[0],
+        }
+        # 나머지 열을 -20으로 채우기
+        for col in group.columns:
+            if col not in new_row:
+                new_row[col] = -20
+        group = pd.concat([group, pd.DataFrame([new_row])], ignore_index=True)
+    
+    # STEP_ID 순서대로 정렬
+    group = group.sort_values(by='STEP_ID').reset_index(drop=True)
+    print(group)
+    processed_groups.append(group)
+
+# for i, grou in tqdm(enumerate(processed_groups)):
+#     name = grou.iloc[0]['WAF_ID']
+#     output_file_path = os.path.join(output_dir_path, f'{name}.csv')
+#     grou.to_csv(output_file_path, index =False)
+
+# # 5. 그룹을 하나로 합치기
+# final_df = pd.concat(processed_groups, ignore_index=True)
+
+# # 결과 저장
+# final_df.to_csv("processed_data.csv", index=False)
+# print("결과가 'processed_data.csv'에 저장되었습니다.")
