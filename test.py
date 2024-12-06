@@ -1,20 +1,45 @@
 import pandas as pd
+from sklearn.preprocessing import StandardScaler
 
 # CSV 파일 읽기
 df = pd.read_csv('파일명.csv')
 
-# 각 열의 최대값과 최소값 계산 (텍스트 제외)
-numerical_columns = df.select_dtypes(include=['number']).columns  # 숫자형 데이터만 선택
-max_min_values = df[numerical_columns].agg(['min', 'max'])
+# 표준화 제외할 열 정의
+exclude_columns = ['SFQR', 'SFQR_SUB']
 
-# 정규화 (Min-Max Scaling)
-df_normalized = df.copy()  # 원본 유지
+# 숫자형 열 중 제외할 열 제외
+numerical_columns = [col for col in df.select_dtypes(include=['number']).columns if col not in exclude_columns]
+
+# 표준화 수행
+df_standardized = df.copy()
+scaler = StandardScaler()
+
+# 열별로 최대/최소값 계산 및 10% 확장
+max_min_values = df.agg(['min', 'max'])
+expanded_ranges = {
+    col: {
+        "min": max_min_values.loc['min', col] - (max_min_values.loc['max', col] - max_min_values.loc['min', col]) * 0.1,
+        "max": max_min_values.loc['max', col] + (max_min_values.loc['max', col] - max_min_values.loc['min', col]) * 0.1,
+    }
+    for col in numerical_columns
+}
+
+# 표준화 적용
 for col in numerical_columns:
-    df_normalized[col] = (df[col] - max_min_values.loc['min', col]) / (max_min_values.loc['max', col] - max_min_values.loc['min', col])
+    expanded_min = expanded_ranges[col]['min']
+    expanded_max = expanded_ranges[col]['max']
+    
+    # 범위 내에서만 표준화 수행
+    mask = (df[col] >= expanded_min) & (df[col] <= expanded_max)
+    standardized_values = scaler.fit_transform(df.loc[mask, [col]])
+    df_standardized.loc[mask, col] = standardized_values
 
-# 최대/최소 값 확인
-print("최대/최소 값 범위:")
-print(max_min_values)
+# 결과 저장
+df_standardized.to_csv('표준화된_파일명.csv', index=False)
 
-# 정규화된 데이터 저장
-df_normalized.to_csv('정규화된_파일명.csv', index=False)
+# 출력: 최대/최소값과 확장된 범위
+print("열별 최대값, 최소값 및 확장된 범위:")
+for col in numerical_columns:
+    print(f"{col}:")
+    print(f"  원래 최소값: {max_min_values.loc['min', col]:.2f}, 최대값: {max_min_values.loc['max', col]:.2f}")
+    print(f"  확장된 최소값: {expanded_ranges[col]['min']:.2f}, 확장된 최대값: {expanded_ranges[col]['max']:.2f}")
