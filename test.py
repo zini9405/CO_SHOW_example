@@ -1,99 +1,38 @@
-import pandas as pd
-import os
-from tqdm import tqdm
+SFQR(Site Frontsurface-referenced Least Squares/Range)은 반도체 웨이퍼의 국부 평탄도를 평가하는 지표로, 웨이퍼 표면을 일정한 크기의 셀로 나누어 각 셀의 평탄도를 측정합니다. 이때 각 셀의 표면을 최소자승법으로 구한 기준면과 실제 표면 간의 최대 편차 범위를 나타내며, 양(+) 및 음(-)의 편차를 모두 고려합니다. ￼
 
-output_dir_path = 'C:/Users/SKsiltron/Desktop/SFQR/wafer_id_1'
+SFQR은 웨이퍼 제조 공정에서 각 셀의 평탄도를 정량적으로 평가하여, 미세한 회로 패턴의 정확한 형성을 보장하고, 소자의 성능 및 수율을 향상시키는 데 중요한 역할을 합니다. 특히, 웨이퍼의 외주부에서는 평탄도가 저하되는 경향이 있어, 이러한 영역의 평탄도를 평가하기 위해 ESFQR(Edge Site Frontsurface-referenced Least Squares/Range)이라는 지표도 사용됩니다. ￼
 
-# STEP 순서 정의 (순서 유지)
-step_order = {
-    0: 'Prestep',
-    1: 'PURGE',
-    2: 'RAMP_UP',
-    3: 'BAKE1',
-    4: 'BAKE2',
-    5: 'PRE_ETCH',
-    6: 'PRE_DEPO',
-    7: 'DEPO',
-    8: 'POST_PURGE',
-    9: 'COOL1',
-    10: 'COOL2',
-    11: 'COOL3',
-    12: 'Poststep'
-}
+최근 반도체 소자의 미세화와 고집적화로 인해 웨이퍼의 평탄도에 대한 요구 사항이 더욱 엄격해지고 있으며, 이에 따라 SFQR과 같은 지표를 활용한 정밀한 평탄도 관리가 중요해지고 있습니다. ￼
 
-# 불필요한 STEP_NAME 목록
-exclude_step_names = {
-    'BAKE3', 'COOL', 'COOL 1', 'COOL 2', 'COOL 3', 
-    'PURGE 1', 'PURGE 2', 'PURGE1', 'PURGE2', 'PURGE3', 'PURGE4', 
-    'STAB'
-}
 
-# STEP_NAME 수정 매핑
-rename_map = {
-    'POST PURGE': 'POST_PURGE',
-    'PRE DEPO': 'PRE_DEPO',
-    'PREDEPO': 'PRE_DEPO',
-    'Pre DEPO': 'PRE_DEPO',
-    'PRE_VENT': 'PRE_DEPO',
-    'PRE_VETN': 'PRE_DEPO',
-    'PRE ETCH': 'PRE_ETCH',
-    'PRE ETCH1': 'PRE_ETCH',
-    'PRE ETCH2': 'PRE_ETCH',
-    'ETCH': 'PRE_ETCH',
-    'RAMP UP': 'RAMP_UP'
-}
 
-# 데이터프레임 로드 (df는 기존 데이터로부터 가져와야 함)
-df = data  # 기존에 정의된 data를 사용해야 함
 
-# 1. WAF_ID 열로 그룹화
-grouped = df.groupby('WAF_ID')
+SFQR(Site Frontsurface-referenced Least Squares/Range)을 측정하는 이유는 반도체 제조 공정에서 웨이퍼 표면의 평탄도가 매우 중요한 품질 지표이기 때문입니다. 웨이퍼의 평탄도는 미세한 회로 패턴을 정확하게 형성하고, 반도체 소자의 성능 및 제조 수율을 극대화하기 위해 필수적으로 관리되어야 합니다. 주요 이유는 다음과 같습니다:
 
-# 결과를 저장할 리스트
-processed_groups = []
+1. 리소그래피 공정의 정밀도 유지
 
-for waf_id, group in tqdm(grouped, desc="Processing Groups"):
-    # 2. 불필요한 STEP_NAME 포함된 그룹 삭제
-    if group['STEP_NAME'].isin(exclude_step_names).any():
-        continue  # 그룹 제외
-    
-    # 3. STEP_NAME 수정
-    group['STEP_NAME'] = group['STEP_NAME'].replace(rename_map)
-    
-    # 4. STEP 순서 보장 (빈 STEP_NAME 채우기)
-    existing_step_names = set(group['STEP_NAME'])
-    missing_steps = {v: k for k, v in step_order.items() if v not in existing_step_names}
-    
-    for step_name, step_id in missing_steps.items():
-        new_row = {
-            'STEP_ID': step_id,
-            'STEP_NAME': step_name,
-            'EQP_ID': group['EQP_ID'].iloc[0],
-            'MODULE_NAME': group['MODULE_NAME'].iloc[0],
-            'WAF_ID': group['WAF_ID'].iloc[0],
-            'RECIPE_ID': group['RECIPE_ID'].iloc[0],
-            'HST_REG_DTTM': group['HST_REG_DTTM'].iloc[0],
-        }
-        # 나머지 열을 -20으로 채우기
-        for col in group.columns:
-            if col not in new_row:
-                new_row[col] = -20
-        group = pd.concat([group, pd.DataFrame([new_row])], ignore_index=True)
-    
-    # STEP_NAME 순서에 맞게 정렬
-    group['STEP_ID'] = group['STEP_NAME'].map({v: k for k, v in step_order.items()})
-    group = group.sort_values(by='STEP_ID').reset_index(drop=True)
-    processed_groups.append(group)
+	•	웨이퍼 표면이 평탄하지 않으면, 리소그래피 공정 중 빛이 표면에 고르게 도달하지 못해 패턴의 왜곡이나 결함이 발생할 수 있습니다.
+	•	특히 회로의 미세화가 진행될수록 (예: 7nm, 5nm 공정) 이러한 문제가 더욱 심각하게 영향을 미칩니다.
 
-# 각 그룹을 개별 파일로 저장
-for group in tqdm(processed_groups, desc="Saving Groups"):
-    name = group.iloc[0]['WAF_ID']
-    output_file_path = os.path.join(output_dir_path, f'{name}.csv')
-    group.to_csv(output_file_path, index=False)
+2. 에칭 및 증착 공정에서 균일성 확보
 
-# 5. 그룹을 하나로 합치기
-final_df = pd.concat(processed_groups, ignore_index=True)
+	•	에칭과 증착 공정은 웨이퍼 표면의 균일성을 전제로 작업이 이루어지는데, 표면이 울퉁불퉁하면 두께 차이와 같은 문제가 발생할 수 있습니다.
+	•	이는 소자의 성능 저하와 직결됩니다.
 
-# 결과 저장
-final_df.to_csv("processed_data.csv", index=False)
-print("결과가 'processed_data.csv'에 저장되었습니다.")
+3. 반도체 소자의 성능 보장
+
+	•	웨이퍼의 평탄도가 낮으면, 제조된 소자의 전기적 특성이 불균일해지고, 결국 제품의 품질 문제가 발생할 가능성이 높아집니다.
+
+4. 수율 향상
+
+	•	평탄도가 낮은 웨이퍼는 불량률을 높이며, 이는 곧 제조 비용의 증가로 이어집니다.
+	•	SFQR 지표를 활용하면 제조 공정 중 결함을 사전에 방지하고 수율을 높일 수 있습니다.
+
+5. 최신 공정의 요구 충족
+
+	•	최근에는 웨이퍼 크기가 300mm 이상으로 커지고, 회로 패턴의 크기가 5nm 이하로 미세화되면서 웨이퍼의 평탄도 관리가 더욱 중요해졌습니다.
+	•	이 때문에 SFQR 및 ESFQR 같은 고도화된 평탄도 평가 지표가 사용됩니다.
+
+요약
+
+SFQR 측정은 웨이퍼 표면의 미세한 불균일성을 정량적으로 평가하여, 공정 중 발생할 수 있는 결함을 줄이고 최종 제품의 품질과 제조 효율을 높이는 데 필수적인 역할을 합니다.
