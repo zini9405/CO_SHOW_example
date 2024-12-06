@@ -43,8 +43,8 @@ rename_map = {
     'RAMP UP': 'RAMP_UP'
 }
 
-# 예시 데이터 로드 (wa 디렉토리의 CSV 파일 병합)
-df = data
+# 데이터프레임 로드 (df는 기존 데이터로부터 가져와야 함)
+df = data  # 기존에 정의된 data를 사용해야 함
 
 # 1. WAF_ID 열로 그룹화
 grouped = df.groupby('WAF_ID')
@@ -52,7 +52,7 @@ grouped = df.groupby('WAF_ID')
 # 결과를 저장할 리스트
 processed_groups = []
 
-for waf_id, group in tqdm(grouped):
+for waf_id, group in tqdm(grouped, desc="Processing Groups"):
     # 2. 불필요한 STEP_NAME 포함된 그룹 삭제
     if group['STEP_NAME'].isin(exclude_step_names).any():
         continue  # 그룹 제외
@@ -61,6 +61,7 @@ for waf_id, group in tqdm(grouped):
     group['STEP_NAME'] = group['STEP_NAME'].replace(rename_map)
     
     # 4. STEP 순서 보장 (0~12 값 채우기)
+    group['STEP_ID'] = group['STEP_ID'].astype(int)  # STEP_ID를 숫자로 변환
     missing_steps = set(step_order.keys()) - set(group['STEP_ID'])
     for step in missing_steps:
         new_row = {
@@ -80,17 +81,17 @@ for waf_id, group in tqdm(grouped):
     
     # STEP_ID 순서대로 정렬
     group = group.sort_values(by='STEP_ID').reset_index(drop=True)
-    print(group)
     processed_groups.append(group)
 
-# for i, grou in tqdm(enumerate(processed_groups)):
-#     name = grou.iloc[0]['WAF_ID']
-#     output_file_path = os.path.join(output_dir_path, f'{name}.csv')
-#     grou.to_csv(output_file_path, index =False)
+# 각 그룹을 개별 파일로 저장
+for group in tqdm(processed_groups, desc="Saving Groups"):
+    name = group.iloc[0]['WAF_ID']
+    output_file_path = os.path.join(output_dir_path, f'{name}.csv')
+    group.to_csv(output_file_path, index=False)
 
-# # 5. 그룹을 하나로 합치기
-# final_df = pd.concat(processed_groups, ignore_index=True)
+# 5. 그룹을 하나로 합치기
+final_df = pd.concat(processed_groups, ignore_index=True)
 
-# # 결과 저장
-# final_df.to_csv("processed_data.csv", index=False)
-# print("결과가 'processed_data.csv'에 저장되었습니다.")
+# 결과 저장
+final_df.to_csv("processed_data.csv", index=False)
+print("결과가 'processed_data.csv'에 저장되었습니다.")
