@@ -62,7 +62,10 @@ for waf_id, group in tqdm(grouped, desc="Processing Groups"):
     
     # 4. STEP 순서 보장 (0~12 값 채우기)
     group['STEP_ID'] = group['STEP_ID'].astype(int)  # STEP_ID를 숫자로 변환
-    missing_steps = set(step_order.keys()) - set(group['STEP_ID'])
+    existing_steps = set(group['STEP_ID'])
+    missing_steps = set(step_order.keys()) - existing_steps
+    
+    # 누락된 STEP_ID 추가
     for step in missing_steps:
         new_row = {
             'STEP_ID': step,
@@ -80,7 +83,7 @@ for waf_id, group in tqdm(grouped, desc="Processing Groups"):
         group = pd.concat([group, pd.DataFrame([new_row])], ignore_index=True)
     
     # STEP_ID 순서대로 정렬
-    group = group.sort_values(by='STEP_ID').reset_index(drop=True)
+    group = group.sort_values(by='STEP_ID', key=lambda x: x.astype(int)).reset_index(drop=True)
     processed_groups.append(group)
 
 # 각 그룹을 개별 파일로 저장
