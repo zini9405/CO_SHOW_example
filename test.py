@@ -4,7 +4,7 @@ from tqdm import tqdm
 
 output_dir_path = 'C:/Users/SKsiltron/Desktop/SFQR/wafer_id_1'
 
-# STEP 순서 정의
+# STEP 순서 정의 (순서 유지)
 step_order = {
     0: 'Prestep',
     1: 'PURGE',
@@ -60,16 +60,14 @@ for waf_id, group in tqdm(grouped, desc="Processing Groups"):
     # 3. STEP_NAME 수정
     group['STEP_NAME'] = group['STEP_NAME'].replace(rename_map)
     
-    # 4. STEP 순서 보장 (0~12 값 채우기)
-    group['STEP_ID'] = group['STEP_ID'].astype(int)  # STEP_ID를 숫자로 변환
-    existing_steps = set(group['STEP_ID'])
-    missing_steps = set(step_order.keys()) - existing_steps
+    # 4. STEP 순서 보장 (빈 STEP_NAME 채우기)
+    existing_step_names = set(group['STEP_NAME'])
+    missing_steps = {v: k for k, v in step_order.items() if v not in existing_step_names}
     
-    # 누락된 STEP_ID 추가
-    for step in missing_steps:
+    for step_name, step_id in missing_steps.items():
         new_row = {
-            'STEP_ID': step,
-            'STEP_NAME': step_order[step],
+            'STEP_ID': step_id,
+            'STEP_NAME': step_name,
             'EQP_ID': group['EQP_ID'].iloc[0],
             'MODULE_NAME': group['MODULE_NAME'].iloc[0],
             'WAF_ID': group['WAF_ID'].iloc[0],
@@ -82,8 +80,9 @@ for waf_id, group in tqdm(grouped, desc="Processing Groups"):
                 new_row[col] = -20
         group = pd.concat([group, pd.DataFrame([new_row])], ignore_index=True)
     
-    # STEP_ID 순서대로 정렬
-    group = group.sort_values(by='STEP_ID', key=lambda x: x.astype(int)).reset_index(drop=True)
+    # STEP_NAME 순서에 맞게 정렬
+    group['STEP_ID'] = group['STEP_NAME'].map({v: k for k, v in step_order.items()})
+    group = group.sort_values(by='STEP_ID').reset_index(drop=True)
     processed_groups.append(group)
 
 # 각 그룹을 개별 파일로 저장
