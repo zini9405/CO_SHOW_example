@@ -74,20 +74,26 @@ class FullMultiLevelTransformer(nn.Module):
 
         self.fc = nn.Linear(d_model, 1)
 
-    def forward(self, x):
+    def forward(self, x, mask):
         batch_size, window_size, steps, features = x.size()
 
+        # Apply mask to ignore -9999 values
+        x = x * mask.float()  # Zero out -9999 values in the input
+
+        # --- Feature Transformer: 변수 간 관계 학습 ---
         x = x.view(batch_size * window_size * steps, features, 1)
         x = self.feature_embedding(x)
         x = x.permute(1, 0, 2)
         x = self.feature_transformer(x)
         x = x[-1, :, :]
 
+        # --- Step Transformer: Step 간 관계 학습 ---
         x = x.view(batch_size * window_size, steps, -1)
         x = x.permute(1, 0, 2)
         x = self.step_transformer(x)
         x = x[-1, :, :]
 
+        # --- Time Transformer: 웨이퍼 간 시간축 관계 학습 ---
         x = x.view(batch_size, window_size, -1)
         x = x.permute(1, 0, 2)
         x = self.time_transformer(x)
@@ -99,17 +105,14 @@ class FullMultiLevelTransformer(nn.Module):
 
 # Masked MSE Loss
 def masked_mse_loss(output, target, mask):
-    valid_mask = mask.any(dim=[1, 2, 3])
-    valid_output = output[valid_mask]
-    valid_target = target[valid_mask]
+    valid_mask = mask.any(dim=[1, 2, 3])  # Reduce mask to valid samples
+    valid_output = output[valid_mask]  # Predictions for valid samples
+    valid_target = target[valid_mask]  # Ground truth for valid samples
     return torch.mean((valid_output - valid_target) ** 2)
 
 
 # Accuracy calculation
 def calculate_accuracy(output, target, threshold=1.0):
-    """
-    Calculate accuracy based on prediction closeness within a threshold.
-    """
     correct = torch.abs(output - target) <= threshold
     return correct.sum().item() / len(target)
 
@@ -122,7 +125,7 @@ def train_val_split(dataset, val_ratio=0.2):
 
 
 # Training loop
-def train_model_with_accuracy(model, train_loader, val_loader, criterion, optimizer, num_epochs, device, log_dir):
+def train_model_with_masked_inputs(model, train_loader, val_loader, criterion, optimizer, num_epochs, device, log_dir):
     writer = SummaryWriter(log_dir)
     model.to(device)
 
@@ -134,8 +137,8 @@ def train_model_with_accuracy(model, train_loader, val_loader, criterion, optimi
         for batch_data, batch_labels, batch_masks in tqdm(train_loader, desc=f"Training Epoch {epoch + 1}/{num_epochs}"):
             batch_data, batch_labels, batch_masks = batch_data.to(device), batch_labels.to(device), batch_masks.to(device)
 
-            # Forward pass
-            outputs = model(batch_data)
+            # Forward pass with masking
+            outputs = model(batch_data, batch_masks)
 
             # Compute loss
             loss = criterion(outputs.squeeze(), batch_labels, batch_masks)
@@ -162,7 +165,7 @@ def train_model_with_accuracy(model, train_loader, val_loader, criterion, optimi
         with torch.no_grad():
             for batch_data, batch_labels, batch_masks in val_loader:
                 batch_data, batch_labels, batch_masks = batch_data.to(device), batch_labels.to(device), batch_masks.to(device)
-                outputs = model(batch_data)
+                outputs = model(batch_data, batch_masks)
                 loss = criterion(outputs.squeeze(), batch_labels, batch_masks)
                 val_loss += loss.item()
 
@@ -196,7 +199,7 @@ val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 model = FullMultiLevelTransformer(input_dim=36, steps=13, window_size=3, d_model=64, nhead=4, num_layers=2, dim_feedforward=128)
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-train_model_with_accuracy(
+train_model_with_masked_inputs(
     model=model,
     train_loader=train_loader,
     val_loader=val_loader,
