@@ -3,12 +3,13 @@ import torch
 
 def plot_predictions(predictions, true_labels):
     """
-    예측값과 실제값을 비교하는 산점도 생성 (numpy 없이 torch만 사용)
+    예측값과 실제값을 비교하는 산점도 생성
     """
-    # torch 텐서로부터 CPU 데이터 추출
-    predictions = torch.stack(predictions).detach().cpu()
-    true_labels = torch.stack(true_labels).detach().cpu()
+    # 모든 데이터를 torch.Tensor로 변환
+    predictions = torch.cat([torch.tensor(p).unsqueeze(0) for p in predictions]).detach().cpu()
+    true_labels = torch.cat([torch.tensor(t).unsqueeze(0) for t in true_labels]).detach().cpu()
 
+    # 산점도 생성
     plt.figure(figsize=(8, 8))
     plt.scatter(true_labels, predictions, alpha=0.6, edgecolor="k")
     plt.plot(
@@ -22,6 +23,6 @@ def plot_predictions(predictions, true_labels):
     plt.grid(True)
     plt.show()
 
-# Test 모델 실행 후 그래프 출력
+# 테스트 함수 실행 후 그래프 출력
 predictions, true_labels = test_model(model, test_loader, device, save_path)
 plot_predictions(predictions, true_labels)
