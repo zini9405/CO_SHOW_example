@@ -1,32 +1,21 @@
-# 4. Masked MSE Loss
-def masked_mse_loss(output, target):
-    return torch.mean((output - target) ** 2)
+import matplotlib.pyplot as plt
 
-criterion=masked_mse_loss
+def plot_predictions(predictions, true_labels):
+    """
+    예측값과 실제값을 비교하는 산점도 생성
+    """
+    predictions = torch.tensor(predictions).cpu().numpy()
+    true_labels = torch.tensor(true_labels).cpu().numpy()
 
-def test_model(model, test_loader, device, load_path):
-    model.load_state_dict(torch.load(load_path))
-    model.to(device)
-    model.eval()
-    test_loss = 0.0
-    test_accuracy = 0.0
-    predictions = []
-    true_labels = []
-    with torch.no_grad():
-        for batch_data, batch_labels in tqdm(test_loader, desc="Testing"):
-            batch_data = batch_data.to(device)
-            batch_labels = batch_labels.to(device)
-            outputs = model(batch_data).squeeze()
-            loss = criterion(outputs.squeeze(), batch_labels)
-            test_loss += loss.item()
+    plt.figure(figsize=(8, 8))
+    plt.scatter(true_labels, predictions, alpha=0.6, edgecolor="k")
+    plt.plot([true_labels.min(), true_labels.max()], [true_labels.min(), true_labels.max()], 'r--', lw=2)  # y=x 선
+    plt.title("Predictions vs True Labels")
+    plt.xlabel("True Labels")
+    plt.ylabel("Predictions")
+    plt.grid(True)
+    plt.show()
 
-            accuracy = calculate_accuracy(outputs.squeeze(), batch_labels)
-            test_accuracy += accuracy
-            predictions.extend(outputs)
-            true_labels.extend(batch_labels)
-    avg_test_loss = test_loss / len(test_loader)
-    avg_test_accuracy = test_accuracy / len(test_loader)
-    
-    print(f"test Loss: {avg_test_loss:.4f}, test Accuracy: {avg_test_accuracy:.4f}")
-
-    return predictions, true_labels
+# Test 모델 실행 후 그래프 출력
+predictions, true_labels = test_model(model, test_loader, device, save_path)
+plot_predictions(predictions, true_labels)
