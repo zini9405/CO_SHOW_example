@@ -1,44 +1,73 @@
-for file in all_files:
-    # Load CSV
-    df = pd.read_csv(file)
-    
-    # Ensure STEP_ID is sorted
-    if "STEP_ID" in df.columns:
-        df = df.sort_values("STEP_ID")
-    
-    # Drop unnecessary columns
-    df = df.drop(columns=["STEP_NAME", "WAF_ID", "HST_REG_DTTM"], errors="ignore")
-    
-    # Replace RECIPE_ID and EQP_ID_MODULE_NAME with numeric values
-    if "RECIPE_ID" in df.columns:
-        df["RECIPE_ID"] = df["RECIPE_ID"].map(recipe_mapping)
-    if "EQP_ID_MODULE_NAME" in df.columns:
-        df["EQP_ID_MODULE_NAME"] = df["EQP_ID_MODULE_NAME"].map(eqp_mapping)
-    
-    # Fill missing values with a placeholder value
-    df = df.fillna(-9999)
-    
-    # Split into 13-step sequences and extract labels
-    num_rows = len(df)
-    step_size = 13
-    num_sequences = num_rows // step_size
-    
-    processed_data = []
-    labels = []
-    for i in range(num_sequences):
-        sequence = df.iloc[i * step_size:(i + 1) * step_size]
-        label = sequence.iloc[-1]["SFQR_AFS2"]  # Extract label from the last step of the sequence
-        processed_data.append(sequence.values)
-        labels.append(label)
-    
-    # Convert to 3D array (Num Sequences, Steps, Features) and labels
-    processed_data = np.array(processed_data)
-    labels = np.array(labels)
-    
-    # Save processed data and labels
-    output_data_file = os.path.join(output_directory, os.path.basename(file).replace(".csv", "_data.npy"))
-    output_label_file = os.path.join(output_directory, os.path.basename(file).replace(".csv", "_labels.npy"))
-    np.save(output_data_file, processed_data)
-    np.save(output_label_file, labels)
+import numpy as np
+import torch
+from torch.utils.data import Dataset, DataLoader
+import glob
+import os
 
-print(f"Processed data and labels saved in {output_directory}")
+
+# Custom Dataset for loading multiple .npy files and applying masking for -9999 values
+class MaskedWaferDataset(Dataset):
+    def __init__(self, data_dir, window_size=3, mask_value=-9999):
+        """
+        Args:
+            data_dir: Directory containing .npy files (both data and labels).
+            window_size: Number of overlapping sequences to include in each sample.
+            mask_value: Value to be masked in the dataset.
+        """
+        self.data_files = sorted(glob.glob(os.path.join(data_dir, "*_data.npy")))
+        self.label_files = sorted(glob.glob(os.path.join(data_dir, "*_labels.npy")))
+        self.window_size = window_size
+        self.mask_value = mask_value
+
+        # Load all data and labels into memory
+        self.data = []
+        self.labels = []
+
+        for data_file, label_file in zip(self.data_files, self.label_files):
+            data = np.load(data_file)  # Shape: [Num Sequences, Steps, Features]
+            labels = np.load(label_file)  # Shape: [Num Sequences]
+            self.data.append(data)
+            self.labels.append(labels)
+
+        # Concatenate all data and labels
+        self.data = np.concatenate(self.data, axis=0)
+        self.labels = np.concatenate(self.labels, axis=0)
+
+    def __len__(self):
+        # Ensure we have enough sequences for the window size
+        return len(self.data) - self.window_size + 1
+
+    def __getitem__(self, idx):
+        # Extract overlapping window of sequences
+        data_window = self.data[idx:idx + self.window_size]  # Shape: [Window Size, Steps, Features]
+        label_window = self.labels[idx:idx + self.window_size]  # Shape: [Window Size]
+
+        # Apply masking
+        mask = data_window != self.mask_value  # Create mask for valid values
+        masked_data_window = data_window * mask  # Zero out invalid values
+
+        # Use the label of the last sequence in the window as the target
+        return (
+            torch.tensor(masked_data_window, dtype=torch.float32),
+            torch.tensor(label_window[-1], dtype=torch.float32),
+            torch.tensor(mask, dtype=torch.bool),  # Include the mask for further processing if needed
+        )
+
+
+# Example usage with a directory containing .npy files
+data_dir = "processed"  # Directory with *_data.npy and *_labels.npy
+window_size = 3
+batch_size = 8
+
+# Create Dataset and DataLoader
+dataset = MaskedWaferDataset(data_dir, window_size=window_size, mask_value=-9999)
+dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+# Test DataLoader
+for batch_data, batch_labels, batch_masks in dataloader:
+    print("Batch data shape:", batch_data.shape)  # [Batch Size, Window Size, Steps, Features]
+    print("Batch labels shape:", batch_labels.shape)  # [Batch Size]
+    print("Batch masks shape:", batch_masks.shape)  # [Batch Size, Window Size, Steps, Features]
+    break  # Print one batch and stop
+
+print(f"DataLoader created successfully with {len(dataset)} samples.")
