@@ -1,33 +1,32 @@
 def plot_predictions(predictions, true_labels):
     """
-    예측값과 정답값을 비교하는 산점도 생성
+    정답값(x축)과 예측값(y축)을 비교하는 산점도 생성
     """
     plt.figure(figsize=(8, 8))
     
-    # 정답값 (True Labels)
+    # 산점도 생성
     plt.scatter(
-        range(len(true_labels)),
         true_labels,
+        predictions,
         alpha=0.6,
-        edgecolor="blue",
-        label="True Labels",
+        edgecolor="k",
+        label="Predictions vs True Labels",
         color="blue"
     )
     
-    # 예측값 (Predictions)
-    plt.scatter(
-        range(len(predictions)),
-        predictions,
-        alpha=0.6,
-        edgecolor="red",
-        label="Predictions",
-        color="red"
+    # y=x 선 추가 (이상적인 경우)
+    plt.plot(
+        [min(true_labels), max(true_labels)],
+        [min(true_labels), max(true_labels)],
+        'r--',
+        lw=2,
+        label="Ideal Line (y=x)"
     )
     
     # 그래프 설정
     plt.title("Predictions vs True Labels")
-    plt.xlabel("Sample Index")
-    plt.ylabel("Values")
-    plt.legend(loc="upper right")
+    plt.xlabel("True Labels")
+    plt.ylabel("Predictions")
+    plt.legend(loc="upper left")
     plt.grid(True)
     plt.show()
