@@ -1,143 +1,231 @@
-import os
-import pandas as pd
-import torch
-import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader, random_split
-from tqdm import tqdm
-from torch.utils.tensorboard import SummaryWriter
-from einops import rearrange, reduce
+import matplotlib.pyplot as plt
 
-# 1. 데이터 매핑 함수
-def map_to_numeric(values):
-    mapping = {val: idx for idx, val in enumerate(sorted(values))}
-    return mapping
+def plot_predictions(predictions, true_labels):
+    """
+    예측값과 실제값을 비교하는 산점도 생성
+    """
+    # 모든 데이터를 torch.Tensor로 변환
+    predictions = torch.cat([torch.tensor(p).unsqueeze(0) for p in predictions]).detach().cpu()
+    print(predictions*100000)
+    true_labels = torch.cat([torch.tensor(t).unsqueeze(0) for t in true_labels]).detach().cpu()
+    print(true_labels)
 
-# 2. Custom Dataset 정의
-class CustomDataset(Dataset):
-    def __init__(self, df):
-        self.data = df
-        self.filtered_data = self.data[self.data['STEP_NAME'] == 'DEPO']
-        self.labels = self.filtered_data['SFQR_AFS2'].values * 100000
-        self.features = self.filtered_data.drop(columns=['SFQR_AFS2', 'STEP_NAME', "WAF_ID", "HST_REG_DTTM", 'STEP_ID']).values
+    # 산점도 생성
+    plt.figure(figsize=(8, 8))
+    plt.scatter(true_labels, predictions, alpha=0.6, edgecolor="k")
+    plt.plot(
+        [true_labels.min().item(), true_labels.max().item()],
+        [true_labels.min().item(), true_labels.max().item()],
+        'r--', lw=2
+    )  # y=x 선
+    plt.title("Predictions vs True Labels")
+    plt.xlabel("True Labels")
+    plt.ylabel("Predictions")
+    plt.grid(True)
+    plt.show()
 
-    def __len__(self):
-        return len(self.filtered_data)
 
-    def __getitem__(self, idx):
-        return torch.tensor(self.features[idx], dtype=torch.float32), torch.tensor(self.labels[idx], dtype=torch.float32)
+# def plot_predictions(predictions, true_labels):
+#     """
+#     정답값(x축)과 예측값(y축)을 비교하는 산점도 생성
+#     """
 
-# 3. Transformer 모델 정의
-class FullMultiLevelTransformer(nn.Module):
-    def __init__(self, input_dim, d_model=64, nhead=4, num_layers=2, dim_feedforward=128, dropout=0.1):
-        super(FullMultiLevelTransformer, self).__init__()
-        self.d_model = d_model
+#     predictions = torch.cat([torch.tensor(p).unsqueeze(0) for p in predictions]).detach().cpu()
+#     true_labels = torch.cat([torch.tensor(t).unsqueeze(0) for t in true_labels]).detach().cpu()
+#     plt.figure(figsize=(8, 8))
+    
+#     # 산점도 생성
+#     plt.scatter(
+#         true_labels,
+#         predictions,
+#         alpha=0.6,
+#         edgecolor="k",
+#         label="Predictions vs True Labels",
+#         color="blue"
+#     )
+    
+#     # y=x 선 추가 (이상적인 경우)
+#     plt.plot(
+#         [min(true_labels), max(true_labels)],
+#         [min(true_labels), max(true_labels)],
+#         'r--',
+#         lw=2,
+#         label="Ideal Line (y=x)"
+#     )
+    
+#     # 그래프 설정
+#     plt.title("Predictions vs True Labels")
+#     plt.xlabel("True Labels")
+#     plt.ylabel("Predictions")
+#     plt.legend(loc="upper left")
+#     plt.grid(True)
+#     plt.show()
 
-        self.feature_embedding = nn.Linear(input_dim, d_model)
-        self.feature_transformer = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout),
-            num_layers=num_layers
-        )
-        self.fc = nn.Linear(d_model, 1)
-
-    def forward(self, x):
-        x = self.feature_embedding(x)
-        x = rearrange(x, 'b d -> b 1 d')
-        x = self.feature_transformer(x)
-        x = reduce(x, 'b 1 d -> b d', 'mean')
-        return self.fc(x)
-
-# 4. MSE Loss
+# 4. Masked MSE Loss
 def mse_loss(output, target):
     return torch.mean((output - target) ** 2)
 
-# 5. Accuracy 계산
-def calculate_accuracy(output, target, threshold=50):
-    correct = torch.abs(output - target) <= threshold
-    return correct.sum().item() / len(target)
+criterion=mse_loss
 
-# 6. Train/Val Split
-def train_val_split(dataset, val_ratio=0.2):
-    val_size = int(len(dataset) * val_ratio)
-    train_size = len(dataset) - val_size
-    return random_split(dataset, [train_size, val_size])
-
-# 7. 모델 훈련 루프
-def train_model_with_masked_inputs(model, train_loader, val_loader, criterion, optimizer, num_epochs, device, log_dir, save_path):
-    writer = SummaryWriter(log_dir)
-    model.to(device)
-
-    for epoch in range(num_epochs):
-        model.train()
-        running_loss = 0.0
-        total_accuracy = 0.0
-
-        for batch_data, batch_labels in tqdm(train_loader, desc=f"Training Epoch {epoch + 1}/{num_epochs}"):
-            batch_data, batch_labels = batch_data.to(device), batch_labels.to(device)
-
-            outputs = model(batch_data)
-
-            loss = criterion(outputs.squeeze(), batch_labels)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            running_loss += loss.item()
-
-            accuracy = calculate_accuracy(outputs.squeeze(), batch_labels)
-            total_accuracy += accuracy
-
-        avg_train_loss = running_loss / len(train_loader)
-        avg_train_accuracy = total_accuracy / len(train_loader)
-        writer.add_scalar("Loss/Train", avg_train_loss, epoch)
-        writer.add_scalar("Accuracy/Train", avg_train_accuracy, epoch)
-        print(f"Epoch [{epoch + 1}/{num_epochs}], Train Loss: {avg_train_loss:.4f}, Train Accuracy: {avg_train_accuracy:.4f}")
-
-        # Validation Step
-        model.eval()
-        val_loss = 0.0
-        val_accuracy = 0.0
-        with torch.no_grad():
-            for batch_data, batch_labels in val_loader:
-                batch_data, batch_labels = batch_data.to(device), batch_labels.to(device)
-                outputs = model(batch_data)
-                # print(outputs[0], batch_labels[0])
-                loss = criterion(outputs.squeeze(), batch_labels)
-                val_loss += loss.item()
-
-                accuracy = calculate_accuracy(outputs.squeeze(), batch_labels)
-                val_accuracy += accuracy
-
-        avg_val_loss = val_loss / len(val_loader)
-        avg_val_accuracy = val_accuracy / len(val_loader)
-        writer.add_scalar("Loss/Validation", avg_val_loss, epoch)
-        writer.add_scalar("Accuracy/Validation", avg_val_accuracy, epoch)
-        print(f"Epoch [{epoch + 1}/{num_epochs}], Validation Loss: {avg_val_loss:.4f}, Validation Accuracy: {avg_val_accuracy:.4f}")
-
-    writer.close()
-    # 모델 가중치 저장
-    torch.save(model.state_dict(), save_path)
-    print(f"Model weights saved to {save_path}")
-
-# 8. 테스트 함수
 def test_model(model, test_loader, device, load_path):
     model.load_state_dict(torch.load(load_path))
     model.to(device)
     model.eval()
-
+    test_loss = 0.0
+    test_accuracy = 0.0
     predictions = []
     true_labels = []
     with torch.no_grad():
         for batch_data, batch_labels in tqdm(test_loader, desc="Testing"):
             batch_data = batch_data.to(device)
-            # print(batch_data.shape)
+            batch_labels = batch_labels.to(device)
             outputs = model(batch_data).squeeze()
+            loss = criterion(outputs.squeeze(), batch_labels)
+            test_loss += loss.item()
+
+            accuracy = calculate_accuracy(outputs.squeeze(), batch_labels)
+            test_accuracy += accuracy
             predictions.extend(outputs)
             true_labels.extend(batch_labels)
+    avg_test_loss = test_loss / len(test_loader)
+    avg_test_accuracy = test_accuracy / len(test_loader)
+    
+    print(f"test Loss: {avg_test_loss:.4f}, test Accuracy: {avg_test_accuracy:.4f}")
 
     return predictions, true_labels
 
-# 9. Main 실행
+
+
+import os
+import pandas as pd
+import torch
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+from torch.utils.data import Dataset, DataLoader, random_split
+
+
+# 데이터 매핑 함수
+def map_to_numeric(values):
+    return {val: idx for idx, val in enumerate(sorted(values))}
+
+
+# Custom Dataset 정의
+class CustomDataset(Dataset):
+    def __init__(self, df):
+        self.data = df
+        self.filtered_data = self.data[self.data['STEP_NAME'] == 'DEPO']
+        self.labels = self.filtered_data['SFQR_AFS2'].values
+        self.features = self.filtered_data.drop(
+            columns=['SFQR_AFS2', 'STEP_NAME', "WAF_ID", "HST_REG_DTTM", 'STEP_ID']
+        ).values
+
+    def __len__(self):
+        return len(self.filtered_data)
+
+    def __getitem__(self, idx):
+        return (
+            torch.tensor(self.features[idx], dtype=torch.float32),
+            torch.tensor(self.labels[idx], dtype=torch.float32),
+        )
+
+
+# Transformer 모델 정의
+class FullMultiLevelTransformer(torch.nn.Module):
+    def __init__(self, input_dim, d_model=64, nhead=4, num_layers=6, dim_feedforward=128):
+        super(FullMultiLevelTransformer, self).__init__()
+        self.feature_embedding = torch.nn.Linear(input_dim, d_model)
+        self.feature_transformer = torch.nn.TransformerEncoder(
+            torch.nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward),
+            num_layers=num_layers,
+        )
+        self.fc = torch.nn.Linear(d_model, 1)
+
+    def forward(self, x):
+        x = self.feature_embedding(x)
+        x = x.unsqueeze(1)  # (batch_size, seq_len=1, d_model)
+        x = self.feature_transformer(x)
+        x = x.mean(dim=1)  # (batch_size, d_model)
+        return self.fc(x)
+
+
+# 손실 함수
+def mse_loss(output, target):
+    return torch.mean((output - target) ** 2)
+
+
+# 정확도 계산 함수
+def calculate_accuracy(output, target, threshold=0.5):
+    correct = torch.abs(output - target) <= threshold
+    return correct.sum().item() / len(target)
+
+
+# Train/Validation Split
+def train_val_split(dataset, val_ratio=0.2):
+    val_size = int(len(dataset) * val_ratio)
+    train_size = len(dataset) - val_size
+    return random_split(dataset, [train_size, val_size])
+
+
+# 테스트 함수
+def test_model(model, test_loader, device, load_path):
+    model.load_state_dict(torch.load(load_path))
+    model.to(device)
+    model.eval()
+
+    predictions, true_labels = [], []
+    with torch.no_grad():
+        for batch_data, batch_labels in tqdm(test_loader, desc="Testing"):
+            batch_data, batch_labels = batch_data.to(device), batch_labels.to(device)
+            outputs = model(batch_data).squeeze()
+            predictions.extend(outputs.cpu().tolist())
+            true_labels.extend(batch_labels.cpu().tolist())
+
+    return predictions, true_labels
+
+
+# 그래프 그리기 함수
+def plot_predictions(predictions, true_labels):
+    """
+    예측값과 정답값을 비교하는 산점도 생성
+    """
+    plt.figure(figsize=(8, 8))
+    
+    # 정답값 (True Labels)
+    plt.scatter(
+        range(len(true_labels[:200])),
+        true_labels[:200],
+        alpha=0.6,
+        edgecolor="blue",
+        label="True Labels",
+        color="blue"
+    )
+    
+    # 예측값 (Predictions)
+    plt.scatter(
+        range(len(predictions[:200])),
+        predictions[:200],
+        alpha=0.6,
+        edgecolor="red",
+        label="Predictions",
+        color="red"
+    )
+    
+    # 그래프 설정
+    plt.title("Predictions vs True Labels")
+    plt.xlabel("Sample Index")
+    plt.ylabel("Values")
+    plt.legend(loc="upper right")
+    plt.grid(True)
+    plt.show()
+
+
+# Main 실행
 def main():
+    # 데이터 경로 설정
+    data_dir = "grouped_datasets"
+    save_path = "model_weights.pth"
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     RECIPE_ID = {'CAN3_01_CA', 'CAN3_01_CB', 'CIS_CA', 'CIS_CB', 'CIS_P+_CA', 'CIS_P+_CB', 'CIS_P+_CXT5_CB', 'CIS_P+_GLX5_CA', 'CIS_P+_GLX5_CB', 'CIS_P+_HUA4_CA', 'CIS_P+_HUA4_CB', 'CIS_P+_ICR5_CB', 'CIS_P+_ONS6_CA', 'CIS_P+_ONS6_CB', 'CIS_P+_PSM4_CA', 'CIS_P+_SKH6_CA', 'CIS_P+_SKH6_CB', 'CIS_P+_SKH9_CA',
     'CIS_P+_SKH9_CB', 'CIS_P+_SMI4_CA', 'CIS_P+_UMC4_CA', 'CIS_P+_UMC4_CB', 'CIS_P_SKH6_CA', 'CIS_P_SKH6_CB', 'GF_01_CA', 'GF_01_CB', 'GF_02_CA', 'GF_02_CB', 'GF_03_CA', 'GF_03_CB', 'HUALI_01_CA', 'HUALI_01_CB',
     'INTEL10_CA', 'INTEL10_CB', 'INTEL14_CB', 'INTEL2_CA', 'INTEL2_CB', 'INTEL7_CA', 'INTEL7_CB', 'L2_CB', 'LOG_TSM1_CA', 'LOG_TSM1_CB', 'LOG_TSM3_CA', 'LOG_TSM3_CB', 'MIC_01_CA', 'MIC_01_CB', 'MXIC_01_CA', 'MXIC_01_CB', 'PSMC_02_CA', 'PSMC_02_CB', 'PSMC_FSI_CA', 'S14_CA', 'S14_CB', 'SEC_L58_CA', 'SEC_L58_CB',
@@ -151,62 +239,33 @@ def main():
     recipe_mapping = map_to_numeric(RECIPE_ID)
     eqp_mapping = map_to_numeric(EQP_ID_MODULE_NAME)
 
-    # Load CSV
-    csv_file = 'grouped_datasets/CENC16B.csv'
-    df = pd.read_csv(csv_file)
+    for i in os.listdir(data_dir):
+        csv_file = f"{data_dir}/{i}"
+        df = pd.read_csv(csv_file).dropna()
+        df = df.sort_values("HST_REG_DTTM")
 
-    df = df.dropna(axis=0)
+        if "RECIPE_ID" in df.columns:
+            df["RECIPE_ID"] = df["RECIPE_ID"].map(recipe_mapping)
+        if "EQP_ID_MODULE_NAME" in df.columns:
+            df["EQP_ID_MODULE_NAME"] = df["EQP_ID_MODULE_NAME"].map(eqp_mapping)
 
-    # Ensure HST_REG_DTTM is sorted
-    df = df.sort_values("HST_REG_DTTM")
+        dataset = CustomDataset(df)
+        train_dataset, val_dataset = train_val_split(dataset, val_ratio=0.2)
+        train_loader = DataLoader(train_dataset, batch_size=512, shuffle=True)
+        val_loader = DataLoader(val_dataset, batch_size=512, shuffle=False)
 
-    # Replace RECIPE_ID and EQP_ID_MODULE_NAME with numeric values
-    if "RECIPE_ID" in df.columns:
-        df["RECIPE_ID"] = df["RECIPE_ID"].map(recipe_mapping)
-    if "EQP_ID_MODULE_NAME" in df.columns:
-        df["EQP_ID_MODULE_NAME"] = df["EQP_ID_MODULE_NAME"].map(eqp_mapping)
+        # 모델 및 옵티마이저 설정
+        model = FullMultiLevelTransformer(input_dim=33, d_model=64, nhead=4, num_layers=6, dim_feedforward=128)
+        optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
-    dataset = CustomDataset(df)
-    train_dataset, val_dataset = train_val_split(dataset, val_ratio=0.2)
-    train_loader = DataLoader(train_dataset, batch_size=512, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=512, shuffle=False)
+        # 테스트
+        test_loader = DataLoader(val_dataset, batch_size=512, shuffle=False)
+        predictions, true_labels = test_model(model, test_loader, device, save_path)
 
-    # 모델 및 학습 설정
-    model = FullMultiLevelTransformer(input_dim=33, d_model=256, nhead=4, num_layers=2, dim_feedforward=512)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-    save_path = "model_weights.pth"
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # 그래프 출력
+        plot_predictions(predictions, true_labels)
+        print("Test completed. Predictions and labels collected.")
 
-    # train_model_with_masked_inputs(
-    #     model=model,
-    #     train_loader=train_loader,
-    #     val_loader=val_loader,
-    #     criterion=mse_loss,
-    #     optimizer=optimizer,
-    #     num_epochs=2000,
-    #     device=device,
-    #     log_dir="logs",
-    #     save_path=save_path
-    # )
-
-    train_model_with_masked_inputs(
-        model=model,
-        train_loader=train_loader,
-        val_loader=val_loader,
-        criterion=nn.HuberLoss(delta=1.0),
-        optimizer=optimizer,
-        num_epochs=2000,
-        device=device,
-        log_dir="logs",
-        save_path=save_path
-    )
-
-
-    # 테스트 데이터셋 생성
-    test_loader = DataLoader(val_dataset, batch_size=512, shuffle=False)
-    predictions, true_labels = test_model(model, test_loader, device, save_path)
-
-    print("Test completed. Predictions and labels collected.")
 
 if __name__ == "__main__":
     main()
