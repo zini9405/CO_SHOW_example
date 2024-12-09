@@ -1,45 +1,154 @@
-import pandas as pd
-from sklearn.preprocessing import StandardScaler
+RECIPE_ID
 
-# CSV 파일 읽기
-df = pd.read_csv('파일명.csv')
+{'CAN3_01_CA',
+ 'CAN3_01_CB',
+ 'CIS_CA',
+ 'CIS_CB',
+ 'CIS_P+_CA',
+ 'CIS_P+_CB',
+ 'CIS_P+_CXT5_CB',
+ 'CIS_P+_GLX5_CA',
+ 'CIS_P+_GLX5_CB',
+ 'CIS_P+_HUA4_CA',
+ 'CIS_P+_HUA4_CB',
+ 'CIS_P+_ICR5_CB',
+ 'CIS_P+_ONS6_CA',
+ 'CIS_P+_ONS6_CB',
+ 'CIS_P+_PSM4_CA',
+ 'CIS_P+_SKH6_CA',
+ 'CIS_P+_SKH6_CB',
+ 'CIS_P+_SKH9_CA',
+ 'CIS_P+_SKH9_CB',
+ 'CIS_P+_SMI4_CA',
+ 'CIS_P+_UMC4_CA',
+ 'CIS_P+_UMC4_CB',
+ 'CIS_P_SKH6_CA',
+ 'CIS_P_SKH6_CB',
+ 'GF_01_CA',
+ 'GF_01_CB',
+ 'GF_02_CA',
+ 'GF_02_CB',
+ 'GF_03_CA',
+ 'GF_03_CB',
+ 'HUALI_01_CA',
+ 'HUALI_01_CB',
+ 'INTEL10_CA',
+ 'INTEL10_CB',
+ 'INTEL14_CB',
+ 'INTEL2_CA',
+ 'INTEL2_CB',
+ 'INTEL7_CA',
+ 'INTEL7_CB',
+ 'L2_CB',
+ 'LOG_TSM1_CA',
+ 'LOG_TSM1_CB',
+ 'LOG_TSM3_CA',
+ 'LOG_TSM3_CB',
+ 'MIC_01_CA',
+ 'MIC_01_CB',
+ 'MXIC_01_CA',
+ 'MXIC_01_CB',
+ 'PSMC_02_CA',
+ 'PSMC_02_CB',
+ 'PSMC_FSI_CA',
+ 'S14_CA',
+ 'S14_CB',
+ 'SEC_L58_CA',
+ 'SEC_L58_CB',
+ 'SKH_CIS_CA',
+ 'SKH_CIS_P+_CA',
+ 'SKH_CIS_P+_CB',
+ 'SL_CA',
+ 'SL_CB',
+ 'SMIC2_R0_CA',
+ 'SMIC2_R0_CB',
+ 'SMIC4_R0_CA',
+ 'SMIC_L7_CB',
+ 'STM_01_CA',
+ 'STM_01_CB',
+ 'STM_P+_CA',
+ 'STM_P+_CB',
+ 'TIX_R0_CA',
+ 'TIX_R0_CB',
+ 'TIX_R1_CA',
+ 'TIX_R1_CB',
+ 'TSMC2_CA',
+ 'TSMC2_CB',
+ 'TSMC_CA',
+ 'TSMC_CB',
+ 'UMC_R0_CA',
+ 'UMC_R0_CB'}
 
-# 표준화 제외할 열 정의
-exclude_columns = ['SFQR', 'SFQR_SUB']
+RECIPE_ID 열 값들이야. 모델에 사용할려면 숫자 값으로 매핑해줘야될거같아. 
 
-# 숫자형 열 중 제외할 열 제외
-numerical_columns = [col for col in df.select_dtypes(include=['number']).columns if col not in exclude_columns]
+EQP_ID_MODULE_NAME
+{'CENC10A',
+ 'CENC10B',
+ 'CENC11A',
+ 'CENC11B',
+ 'CENC12A',
+ 'CENC12B',
+ 'CENC13A',
+ 'CENC13B',
+ 'CENC14A',
+ 'CENC14B',
+ 'CENC15A',
+ 'CENC15B',
+ 'CENC16A',
+ 'CENC16B',
+ 'CENC17A',
+ 'CENC17B',
+ 'CENC31A',
+ 'CENC31B',
+ 'CENC32A',
+ 'CENC32B',
+ 'CENC33A',
+ 'CENC33B',
+ 'CENC34A',
+ 'CENC34B',
+ 'CENC35A',
+ 'CENC35B',
+ 'CENC36A',
+ 'CENC36B',
+ 'CENC41A',
+ 'CENC41B',
+ 'CENC42A',
+ 'CENC42B',
+ 'CENC43A',
+ 'CENC43B',
+ 'CENC44A',
+ 'CENC44B',
+ 'CENC45A',
+ 'CENC45B',
+ 'CENC46A',
+ 'CENC46B',
+ 'CENC47A',
+ 'CENC47B',
+ 'CENC48A',
+ 'CENC48B',
+ 'CENC5A',
+ 'CENC5B',
+ 'CENC6A',
+ 'CENC6B',
+ 'CENC7A',
+ 'CENC7B',
+ 'CENC8A',
+ 'CENC8B',
+ 'CENC9A',
+ 'CENC9B',
+ 'ZCENC01A',
+ 'ZCENC01B',
+ 'ZCENC02A',
+ 'ZCENC02B',
+ 'ZCENC03A',
+ 'ZCENC03B',
+ 'ZCENC04A',
+ 'ZCENC04B'}
+EQP_ID_MODULE_NAME 열 값들이야. 모델에 사용할려면 숫자 값으로 매핑해줘야될거같아. 
 
-# 표준화 수행
-df_standardized = df.copy()
-scaler = StandardScaler()
 
-# 열별로 최대/최소값 계산 및 10% 확장
-max_min_values = df.agg(['min', 'max'])
-expanded_ranges = {
-    col: {
-        "min": max_min_values.loc['min', col] - (max_min_values.loc['max', col] - max_min_values.loc['min', col]) * 0.1,
-        "max": max_min_values.loc['max', col] + (max_min_values.loc['max', col] - max_min_values.loc['min', col]) * 0.1,
-    }
-    for col in numerical_columns
-}
+그리고 final 디렉토리에 장비별로 csv 파일이 있어.
+각 csv 파일은 STEP_ID 0-12 순으로 연속으로 이루어져 있어. HST_REG_DTTM 시간열로 정렬하고 12개씩 잘라서 데이터를 만들어줘.
+예로 360개 있으면 30, 12, 39 형태로 만들어줘. 그리고 STEP_NAME, WAF_ID, HST_REG_DTTM 열은 삭제해줘.
 
-# 표준화 적용
-for col in numerical_columns:
-    expanded_min = expanded_ranges[col]['min']
-    expanded_max = expanded_ranges[col]['max']
-    
-    # 범위 내에서만 표준화 수행
-    mask = (df[col] >= expanded_min) & (df[col] <= expanded_max)
-    standardized_values = scaler.fit_transform(df.loc[mask, [col]])
-    df_standardized.loc[mask, col] = standardized_values
-
-# 결과 저장
-df_standardized.to_csv('표준화된_파일명.csv', index=False)
-
-# 출력: 최대/최소값과 확장된 범위
-print("열별 최대값, 최소값 및 확장된 범위:")
-for col in numerical_columns:
-    print(f"{col}:")
-    print(f"  원래 최소값: {max_min_values.loc['min', col]:.2f}, 최대값: {max_min_values.loc['max', col]:.2f}")
-    print(f"  확장된 최소값: {expanded_ranges[col]['min']:.2f}, 확장된 최대값: {expanded_ranges[col]['max']:.2f}")
+그리고 빈값이 있는 열은 아무 값이나 채워줘. 왜냐하면 추후에 학습할때 학습 안되게 하고 싶어서 이부분도 생각해줘
