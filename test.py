@@ -1,11 +1,6 @@
-# Train 데이터 저장
-train_data = [train_dataset[i] for i in range(len(train_dataset))]
-train_df = pd.DataFrame(train_data)
-train_df.to_csv("train_data.csv", index=False)
-
-# Validation 데이터 저장
-val_data = [val_dataset[i] for i in range(len(val_dataset))]
-val_df = pd.DataFrame(val_data)
-val_df.to_csv("val_data.csv", index=False)
-
-print("Train/Validation 데이터가 CSV로 저장되었습니다.")
+0	1
+0	tensor([ 1.2225e+00, 6.1000e+01, 3.9721e-01,...	tensor(-0.9251)
+1	tensor([ 9.4249e-01, 6.1000e+01, 8.5404e-01,...	tensor(-1.0131)
+2	tensor([-5.9778e-01, 6.1000e+01, 3.9733e-01,...	tensor(-2.3535)
+3	tensor([ 8.0246e-01, 5.2000e+01, 8.5215e-01,...	tensor(0.5206)
+4	tensor([ 6.6244e-01, 2.7000e+01, 1.6733e-01,...	tensor(0.9751)
