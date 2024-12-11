@@ -1,5 +1,4 @@
-StreamlitAPIException: Could not find page: ./pages/SFQR.py. Must be the file path relative to the main script, from the directory: smart-tttm. Only the main app file and files in the pages/ directory are supported.
-
-Traceback:
-File "C:\Users\SKsiltron\Desktop\smart-tttm\front.py", line 109, in <module>
-    st.switch_page(f'./pages/SFQR.py')
+EQP_ID_MODULE_NAME = {'CENC10A', 'CENC10B', 'CENC11A', 'CENC11B', 'CENC12A', 'CENC12B', 'CENC13A', 'CENC13B', 'CENC14A', 'CENC14B', 'CENC15A', 'CENC15B', 'CENC16A', 'CENC16B', 'CENC17A', 'CENC17B', 'CENC31A', 'CENC31B', 'CENC32A',
+'CENC32B', 'CENC33A', 'CENC33B', 'CENC34A', 'CENC34B', 'CENC35A', 'CENC35B', 'CENC36A', 'CENC36B', 'CENC41A', 'CENC41B', 'CENC42A', 'CENC42B', 'CENC43A', 'CENC43B', 'CENC44A', 'CENC44B', 'CENC45A', 'CENC45B',
+'CENC46A', 'CENC46B', 'CENC47A', 'CENC47B', 'CENC48A', 'CENC48B', 'CENC5A', 'CENC5B', 'CENC6A', 'CENC6B', 'CENC7A', 'CENC7B', 'CENC8A', 'CENC8B', 'CENC9A', 'CENC9B', 'ZCENC01A', 'ZCENC01B', 'ZCENC02A', 'ZCENC02B',
+'ZCENC03A', 'ZCENC03B', 'ZCENC04A', 'ZCENC04B'}
