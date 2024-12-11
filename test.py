@@ -33,31 +33,38 @@ with st.sidebar:
 filtered_df = st.session_state['df_Y'][st.session_state['df_Y']['EQP_ID_MODULE_NAME'] == selected_eqp]
 
 # 날짜 선택
-st.subheader("날짜 선택")
-min_date = pd.to_datetime(filtered_df['HST_REG_DTTM']).min()
-max_date = pd.to_datetime(filtered_df['HST_REG_DTTM']).max()
+st.subheader("날짜와 시간 선택")
+if not filtered_df.empty:
+    min_datetime = pd.to_datetime(filtered_df['HST_REG_DTTM']).min()
+    max_datetime = pd.to_datetime(filtered_df['HST_REG_DTTM']).max()
 
-date_selection = st.date_input(
-    "날짜를 선택하세요 (연속 선택 가능)",
-    [min_date, max_date]
-)
+    # 날짜와 시간 선택을 위한 슬라이더
+    start_datetime, end_datetime = st.slider(
+        "날짜와 시간을 선택하세요",
+        min_value=min_datetime,
+        max_value=max_datetime,
+        value=(min_datetime, max_datetime),
+        format="YYYY-MM-DD HH:mm"
+    )
 
-if isinstance(date_selection, list) and len(date_selection) == 2:
-    start_date, end_date = date_selection
+    # 선택된 날짜 범위로 데이터 필터링
     filtered_df = filtered_df[
-        (pd.to_datetime(filtered_df['HST_REG_DTTM']) >= pd.Timestamp(start_date)) &
-        (pd.to_datetime(filtered_df['HST_REG_DTTM']) <= pd.Timestamp(end_date))
+        (pd.to_datetime(filtered_df['HST_REG_DTTM']) >= start_datetime) &
+        (pd.to_datetime(filtered_df['HST_REG_DTTM']) <= end_datetime)
     ]
-elif isinstance(date_selection, pd.Timestamp):
-    filtered_df = filtered_df[pd.to_datetime(filtered_df['HST_REG_DTTM']) == pd.Timestamp(date_selection)]
+else:
+    st.warning("선택된 EQP에 대한 데이터가 없습니다.")
 
 # WAF_ID 선택
-st.subheader("WAF_ID 선택")
-waf_id_options = filtered_df['WAF_ID'].unique()
-selected_waf_id = st.selectbox('WAF_ID', options=waf_id_options)
+if not filtered_df.empty:
+    st.subheader("WAF_ID 선택")
+    waf_id_options = filtered_df['WAF_ID'].unique()
+    selected_waf_id = st.selectbox('WAF_ID', options=waf_id_options)
 
-# WAF_ID로 데이터 필터링
-filtered_df = filtered_df[filtered_df['WAF_ID'] == selected_waf_id]
+    # WAF_ID로 데이터 필터링
+    filtered_df = filtered_df[filtered_df['WAF_ID'] == selected_waf_id]
+else:
+    st.warning("선택된 날짜 범위에 대한 데이터가 없습니다.")
 
 # 그래프 시각화
 st.subheader("Pred와 SFQR_AFS2 그래프")
@@ -65,10 +72,10 @@ if not filtered_df.empty:
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['Pred'], label='Pred', marker='o')
     ax.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['SFQR_AFS2'], label='SFQR_AFS2', marker='x')
-    ax.set_xlabel('Date')
+    ax.set_xlabel('Date and Time')
     ax.set_ylabel('Values')
     ax.legend()
     ax.grid(True)
     st.pyplot(fig)
 else:
-    st.warning("선택한 조건에 해당하는 데이터가 없습니다.")
+    st.warning("선택된 조건에 해당하는 데이터가 없습니다.")
