@@ -1,21 +1,19 @@
-import json
+import re
 
-# 데이터 정의
-EQP_ID_MODULE_NAME = {
-    'CENC10A', 'CENC10B', 'CENC11A', 'CENC11B', 'CENC12A', 'CENC12B', 'CENC13A', 'CENC13B', 
-    'CENC14A', 'CENC14B', 'CENC15A', 'CENC15B', 'CENC16A', 'CENC16B', 'CENC17A', 'CENC17B', 
-    'CENC31A', 'CENC31B', 'CENC32A', 'CENC32B', 'CENC33A', 'CENC33B', 'CENC34A', 'CENC34B', 
-    'CENC35A', 'CENC35B', 'CENC36A', 'CENC36B', 'CENC41A', 'CENC41B', 'CENC42A', 'CENC42B', 
-    'CENC43A', 'CENC43B', 'CENC44A', 'CENC44B', 'CENC45A', 'CENC45B', 'CENC46A', 'CENC46B', 
-    'CENC47A', 'CENC47B', 'CENC48A', 'CENC48B', 'CENC5A', 'CENC5B', 'CENC6A', 'CENC6B', 
-    'CENC7A', 'CENC7B', 'CENC8A', 'CENC8B', 'CENC9A', 'CENC9B', 'ZCENC01A', 'ZCENC01B', 
-    'ZCENC02A', 'ZCENC02B', 'ZCENC03A', 'ZCENC03B', 'ZCENC04A', 'ZCENC04B'
-}
+# 자연스러운 정렬을 위한 키 생성 함수
+def natural_sort_key(s):
+    return [int(text) if text.isdigit() else text.lower() for text in re.split('(\d+)', s)]
 
-# JSON 파일로 저장
-json_data = {"EQP_ID_MODULE_NAME": list(EQP_ID_MODULE_NAME)}
+# JSON 파일 읽기
+with open("EQP_ID_MODULE_NAME.json", "r", encoding="utf-8") as json_file:
+    data = json.load(json_file)
 
-with open("EQP_ID_MODULE_NAME.json", "w", encoding="utf-8") as json_file:
-    json.dump(json_data, json_file, ensure_ascii=False, indent=4)
+# 리스트 데이터 추출
+eqp_id_module_list = data["EQP_ID_MODULE_NAME"]
 
-print("JSON 파일이 생성되었습니다: EQP_ID_MODULE_NAME.json")
+# 자연스러운 정렬
+sorted_list = sorted(eqp_id_module_list, key=natural_sort_key)
+
+# 결과 출력
+print("정렬된 리스트:")
+print(sorted_list)
