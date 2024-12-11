@@ -1,33 +1,34 @@
-import torch
-from torch.utils.data import random_split
+def train_val_split(data, val_ratio=0.2, shuffle=True):
+    """
+    데이터를 Train/Validation으로 나누는 함수.
 
-# 데이터셋 예제 (리스트 형식)
-data = list(range(100))  # [0, 1, 2, ..., 99]
+    Args:
+        data: 전체 데이터 (리스트, DataFrame, 배열 등)
+        val_ratio: Validation 데이터 비율 (기본값: 0.2)
+        shuffle: 데이터를 섞을지 여부 (기본값: True)
 
-# 분리 비율 설정
-train_size = int(0.8 * len(data))  # 80%는 Train
-val_size = len(data) - train_size  # 20%는 Validation
+    Returns:
+        train_data, val_data: Train/Validation 데이터
+    """
+    # 데이터 길이 계산
+    n_total = len(data)
+    split_idx = int(n_total * (1 - val_ratio))
 
-# Generator 생성 (순서를 유지하도록 seed 고정)
-generator = torch.Generator()
-generator.manual_seed(42)  # 시드 고정으로 순서 재현 가능
+    # 인덱스 생성
+    indices = list(range(n_total))
 
-# 데이터 섞지 않도록 Generator 사용
-train_data, val_data = random_split(data, [train_size, val_size], generator=generator)
+    if shuffle:
+        # 데이터를 섞는 경우
+        import random
+        random.seed(42)  # 재현 가능성을 위해 시드 고정
+        random.shuffle(indices)
 
-# Train과 Validation 확인
-print("Train Data:", list(train_data))
-print("Validation Data:", list(val_data))
+    # 섞인 인덱스를 기준으로 데이터 분리
+    train_indices = indices[:split_idx]
+    val_indices = indices[split_idx:]
 
+    # Train/Validation 데이터 분리
+    train_data = [data[i] for i in train_indices]
+    val_data = [data[i] for i in val_indices]
 
-
-# Train/Validation 크기 계산
-train_size = int(0.8 * len(data))
-val_size = len(data) - train_size
-
-# 순차적 데이터 분리
-train_data = data[:train_size]
-val_data = data[train_size:]
-
-print("Train Data:", train_data)
-print("Validation Data:", val_data)
+    return train_data, val_data
