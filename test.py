@@ -1,53 +1,74 @@
-import numpy as np
-import pandas as pd
-import altair as alt
 import streamlit as st
-import matplotlib.pyplot as plt
-from datetime import datetime
+import pandas as pd
 import json
-#from src.misc import load_json
-from src.graph import get_color
 import re
+import matplotlib.pyplot as plt
 
-
-def load_json(
-    path: str
-) -> dict:
-    
-    with open(path, 'r') as f:
-        obj = json.load(f)
-    return obj
-
+# 자연스러운 정렬을 위한 함수
 def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower() for text in re.split('(\d+)', s)]
 
+# JSON 파일 로드 함수
+def load_json(path: str) -> dict:
+    with open(path, 'r') as f:
+        return json.load(f)
 
+# Session state 초기화
 if 'df_Y' not in st.session_state:
-    st.session_state['df_Y'] = pd.read_csv('./asset/SFQR/pred.csv', low_memory=False) # 전체 데이터
+    st.session_state['df_Y'] = pd.read_csv('./asset/SFQR/pred.csv', low_memory=False)
 
 if 'SFQR_json' not in st.session_state:
     st.session_state['SFQR_json'] = load_json('./asset/SFQR/SFQR_jsonSFQR.json')
 
+# Streamlit 앱 구성
+st.title("SFQR Dashboard")
 
-이 코드는 streamlit를 통해 웹페이지를 만드는 거야.
-내가 만들고 싶은 걸 이야기할게.
-
-먼저 st.session_state['SFQR_json']를 통해 아래와 같이 selectbox를 만들어야돼.
-
-with col11:
+# EQP 선택
+with st.sidebar:
     st.subheader('EQP SFQR')
-    eqp = sorted(st.session_state['SFQR_json']['EQP_ID_MODULE_NAME'], key=natural_sort_key)
+    eqp_options = sorted(st.session_state['SFQR_json']['EQP_ID_MODULE_NAME'], key=natural_sort_key)
+    selected_eqp = st.selectbox('EQP NAME', options=eqp_options, index=0)
 
-    eqp = st.selectbox(
-        label = 'EQP NAME',
-        options = eqp,
-        index = 0
-    )
-그리고 선택된 eqp를 통해 st.session_state['df_Y']의 'EQP_ID_MODULE_NAME' 열에 동일한 값을 들고와.
-선택된 값들에 HST_REG_DTTM라는 열이 날짜야. 여기도 날짜를 선택할 수 있는게 만들어줘. 단, 날짜를 연속으로 선택도 할 수 있게 만들어줘. 
-예시 1) 2024-01-01 7:04 한개 선택
-예시 1) 2024-01-01 7:04 부터 2024-05-01
+# 선택된 EQP에 따라 데이터 필터링
+filtered_df = st.session_state['df_Y'][st.session_state['df_Y']['EQP_ID_MODULE_NAME'] == selected_eqp]
 
-그러면 선택된 값에 해당되는 WAF_ID를 selectbox로 만들어줘.
+# 날짜 선택
+st.subheader("날짜 선택")
+min_date = pd.to_datetime(filtered_df['HST_REG_DTTM']).min()
+max_date = pd.to_datetime(filtered_df['HST_REG_DTTM']).max()
 
-마지막으로 날짜에 해당하는 Pred과 SFQR_AFS2을 그래프로 표시해줘.
+date_selection = st.date_input(
+    "날짜를 선택하세요 (연속 선택 가능)",
+    [min_date, max_date]
+)
+
+if isinstance(date_selection, list) and len(date_selection) == 2:
+    start_date, end_date = date_selection
+    filtered_df = filtered_df[
+        (pd.to_datetime(filtered_df['HST_REG_DTTM']) >= pd.Timestamp(start_date)) &
+        (pd.to_datetime(filtered_df['HST_REG_DTTM']) <= pd.Timestamp(end_date))
+    ]
+elif isinstance(date_selection, pd.Timestamp):
+    filtered_df = filtered_df[pd.to_datetime(filtered_df['HST_REG_DTTM']) == pd.Timestamp(date_selection)]
+
+# WAF_ID 선택
+st.subheader("WAF_ID 선택")
+waf_id_options = filtered_df['WAF_ID'].unique()
+selected_waf_id = st.selectbox('WAF_ID', options=waf_id_options)
+
+# WAF_ID로 데이터 필터링
+filtered_df = filtered_df[filtered_df['WAF_ID'] == selected_waf_id]
+
+# 그래프 시각화
+st.subheader("Pred와 SFQR_AFS2 그래프")
+if not filtered_df.empty:
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['Pred'], label='Pred', marker='o')
+    ax.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['SFQR_AFS2'], label='SFQR_AFS2', marker='x')
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Values')
+    ax.legend()
+    ax.grid(True)
+    st.pyplot(fig)
+else:
+    st.warning("선택한 조건에 해당하는 데이터가 없습니다.")
