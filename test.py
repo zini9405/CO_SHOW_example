@@ -56,6 +56,20 @@ if not filtered_df.empty:
 else:
     st.warning("선택된 EQP에 대한 데이터가 없습니다.")
 
+# 필터링된 데이터(웨이퍼로 필터링 전) 그래프
+st.subheader("날짜 기준 필터링된 데이터 그래프")
+if not filtered_df.empty:
+    fig1, ax1 = plt.subplots(figsize=(10, 6))
+    ax1.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['Pred'], label='Pred', marker='o')
+    ax1.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['SFQR_AFS2'], label='SFQR_AFS2', marker='x')
+    ax1.set_xlabel('Date and Time')
+    ax1.set_ylabel('Values')
+    ax1.legend()
+    ax1.grid(True)
+    st.pyplot(fig1)
+else:
+    st.warning("날짜 기준 필터링된 데이터가 없습니다.")
+
 # WAF_ID 선택
 if not filtered_df.empty:
     st.subheader("WAF_ID 선택")
@@ -67,16 +81,16 @@ if not filtered_df.empty:
 else:
     st.warning("선택된 날짜 범위에 대한 데이터가 없습니다.")
 
-# 그래프 시각화
-st.subheader("Pred와 SFQR_AFS2 그래프")
+# WAF_ID로 필터링된 데이터 그래프
+st.subheader("WAF_ID 기준 필터링된 데이터 그래프")
 if not filtered_df.empty:
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['Pred'], label='Pred', marker='o')
-    ax.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['SFQR_AFS2'], label='SFQR_AFS2', marker='x')
-    ax.set_xlabel('Date and Time')
-    ax.set_ylabel('Values')
-    ax.legend()
-    ax.grid(True)
-    st.pyplot(fig)
+    fig2, ax2 = plt.subplots(figsize=(10, 6))
+    ax2.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['Pred'], label='Pred', marker='o')
+    ax2.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['SFQR_AFS2'], label='SFQR_AFS2', marker='x')
+    ax2.set_xlabel('Date and Time')
+    ax2.set_ylabel('Values')
+    ax2.legend()
+    ax2.grid(True)
+    st.pyplot(fig2)
 else:
-    st.warning("선택된 조건에 해당하는 데이터가 없습니다.")
+    st.warning("WAF_ID 기준 필터링된 데이터가 없습니다.")
