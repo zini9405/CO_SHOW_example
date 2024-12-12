@@ -1,106 +1,72 @@
-import streamlit as st
+import os
 import pandas as pd
-import json
-import re
-from datetime import datetime
+from sklearn.cluster import KMeans
+import numpy as np
 import matplotlib.pyplot as plt
 
-# 자연스러운 정렬을 위한 함수
-def natural_sort_key(s):
-    return [int(text) if text.isdigit() else text.lower() for text in re.split('(\d+)', s)]
+# 디렉토리 경로 설정
+directory_path = "path_to_your_directory"
 
-# JSON 파일 로드 함수
-def load_json(path: str) -> dict:
-    with open(path, 'r') as f:
-        return json.load(f)
+# 장비별 값 범위를 저장할 리스트
+device_ranges = []
 
-# Session state 초기화
-if 'df_Y' not in st.session_state:
-    st.session_state['df_Y'] = pd.read_csv('./asset/SFQR/pred.csv', low_memory=False)
+# 디렉토리 내 모든 CSV 파일 처리
+for file_name in os.listdir(directory_path):
+    if file_name.endswith('.csv'):
+        file_path = os.path.join(directory_path, file_name)
+        df = pd.read_csv(file_path)
+        
+        if 'sfqr' in df.columns:
+            # 0.5보다 큰 값 제외
+            filtered_df = df[df['sfqr'] <= 0.5]
+            
+            if not filtered_df.empty:  # 데이터가 비어있지 않은 경우
+                min_val = filtered_df['sfqr'].min()
+                max_val = filtered_df['sfqr'].max()
+                device_ranges.append((file_name, min_val, max_val))
+            else:
+                print(f"{file_name}: All values are above 0.5 after filtering. Skipped.")
 
-if 'SFQR_json' not in st.session_state:
-    st.session_state['SFQR_json'] = load_json('./asset/SFQR/SFQR_jsonSFQR.json')
+# DataFrame으로 정리
+range_df = pd.DataFrame(device_ranges, columns=['Device', 'Min', 'Max'])
 
-# Streamlit 앱 구성
-st.title("SFQR Dashboard")
+if not range_df.empty:
+    # 값 범위 계산
+    range_df['Range'] = range_df['Max'] - range_df['Min']
 
-# EQP 선택
-with st.sidebar:
-    st.subheader('EQP SFQR')
-    eqp_options = sorted(st.session_state['SFQR_json']['EQP_ID_MODULE_NAME'], key=natural_sort_key)
-    selected_eqp = st.selectbox('EQP NAME', options=eqp_options, index=0)
+    # 클러스터링을 위한 데이터 준비 (값 범위 사용)
+    range_data = range_df[['Range']].to_numpy()
 
-# 선택된 EQP에 따라 데이터 필터링
-filtered_df = st.session_state['df_Y'][st.session_state['df_Y']['EQP_ID_MODULE_NAME'] == selected_eqp]
+    # KMeans 클러스터링 (클러스터 개수는 조정 가능)
+    kmeans = KMeans(n_clusters=3, random_state=42)
+    range_df['Cluster'] = kmeans.fit_predict(range_data)
 
-# 날짜와 시간 선택
-st.subheader("날짜와 시간 선택")
-if not filtered_df.empty:
-    min_datetime = pd.to_datetime(filtered_df['HST_REG_DTTM']).min()
-    max_datetime = pd.to_datetime(filtered_df['HST_REG_DTTM']).max()
+    # 클러스터별 장비 묶음 출력
+    grouped_devices = range_df.groupby('Cluster')['Device'].apply(list)
 
-    # 명시적으로 datetime 객체를 전달하여 슬라이더 동작 수정
-    start_datetime, end_datetime = st.slider(
-        "날짜와 시간을 선택하세요",
-        min_value=min_datetime.to_pydatetime(),
-        max_value=max_datetime.to_pydatetime(),
-        value=(min_datetime.to_pydatetime(), max_datetime.to_pydatetime()),
-        format="YYYY-MM-DD HH:mm"
-    )
+    # 결과 출력
+    print("Clustered Devices:")
+    print(grouped_devices)
 
-    # 선택된 날짜 범위로 데이터 필터링
-    filtered_df = filtered_df[
-        (pd.to_datetime(filtered_df['HST_REG_DTTM']) >= start_datetime) &
-        (pd.to_datetime(filtered_df['HST_REG_DTTM']) <= end_datetime)
-    ]
+    # 결과 저장 (선택 사항)
+    output_path = os.path.join(directory_path, "device_clusters_filtered.csv")
+    range_df.to_csv(output_path, index=False)
+    print(f"Cluster information saved to {output_path}")
+
+    # 시각화
+    plt.figure(figsize=(10, 6))
+    for cluster_id in range_df['Cluster'].unique():
+        cluster_data = range_df[range_df['Cluster'] == cluster_id]
+        plt.scatter(cluster_data['Range'], [cluster_id] * len(cluster_data), label=f'Cluster {cluster_id}')
+        for _, row in cluster_data.iterrows():
+            plt.text(row['Range'], cluster_id, row['Device'], fontsize=8, ha='right')
+
+    plt.xlabel('Range (Max - Min)')
+    plt.ylabel('Cluster')
+    plt.title('Device Clusters Based on sfqr Range')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
 else:
-    st.warning("선택된 EQP에 대한 데이터가 없습니다.")
-
-# 필터링된 데이터(웨이퍼로 필터링 전) 그래프
-st.subheader("날짜 기준 필터링된 데이터 그래프")
-if not filtered_df.empty:
-    fig1, ax1 = plt.subplots(figsize=(15, 6))  # 그래프 크기 조정
-    ax1.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['Pred'], label='Pred', marker='o', linestyle='-')
-    ax1.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['SFQR_AFS2'], label='SFQR_AFS2', marker='x', linestyle='-')
-
-    # X축 범위 조정
-    ax1.set_xticks(pd.to_datetime(filtered_df['HST_REG_DTTM'])[::max(1, len(filtered_df) // 10)])
-    ax1.set_xticklabels(pd.to_datetime(filtered_df['HST_REG_DTTM'])[::max(1, len(filtered_df) // 10)].strftime('%Y-%m-%d %H:%M'), rotation=45)
-
-    ax1.set_xlabel('Date and Time')
-    ax1.set_ylabel('Values')
-    ax1.legend()
-    ax1.grid(True)
-    st.pyplot(fig1)
-else:
-    st.warning("날짜 기준 필터링된 데이터가 없습니다.")
-
-# WAF_ID 선택
-if not filtered_df.empty:
-    st.subheader("WAF_ID 선택")
-    waf_id_options = filtered_df['WAF_ID'].unique()
-    selected_waf_id = st.selectbox('WAF_ID', options=waf_id_options)
-
-    # WAF_ID로 데이터 필터링
-    filtered_df = filtered_df[filtered_df['WAF_ID'] == selected_waf_id]
-else:
-    st.warning("선택된 날짜 범위에 대한 데이터가 없습니다.")
-
-# WAF_ID로 필터링된 데이터 그래프
-st.subheader("WAF_ID 기준 필터링된 데이터 그래프")
-if not filtered_df.empty:
-    fig2, ax2 = plt.subplots(figsize=(15, 6))  # 그래프 크기 조정
-    ax2.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['Pred'], label='Pred', marker='o', linestyle='-')
-    ax2.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['SFQR_AFS2'], label='SFQR_AFS2', marker='x', linestyle='-')
-
-    # X축 범위 조정
-    ax2.set_xticks(pd.to_datetime(filtered_df['HST_REG_DTTM'])[::max(1, len(filtered_df) // 10)])
-    ax2.set_xticklabels(pd.to_datetime(filtered_df['HST_REG_DTTM'])[::max(1, len(filtered_df) // 10)].strftime('%Y-%m-%d %H:%M'), rotation=45)
-
-    ax2.set_xlabel('Date and Time')
-    ax2.set_ylabel('Values')
-    ax2.legend()
-    ax2.grid(True)
-    st.pyplot(fig2)
-else:
-    st.warning("WAF_ID 기준 필터링된 데이터가 없습니다.")
+    print("No devices remained after filtering. No clustering performed.")
