@@ -64,25 +64,39 @@ if not filtered_df.empty:
 else:
     st.warning("No data available for the selected date range.")
 
-# 산점도 그래프 추가 (날짜 기준 모든 데이터 사용)
-st.subheader("Scatter Plot (Pred vs SFQR_AFS2)")
-scatter_df = st.session_state['df_Y'][
-    (pd.to_datetime(st.session_state['df_Y']['HST_REG_DTTM']) >= start_datetime) &
-    (pd.to_datetime(st.session_state['df_Y']['HST_REG_DTTM']) <= end_datetime)
-]
-
-if not scatter_df.empty:
-    fig3, ax3 = plt.subplots(figsize=(10, 6))
-    ax3.scatter(scatter_df['SFQR_AFS2'], scatter_df['Pred'], alpha=0.6, c='blue')
-    ax3.set_xlabel('SFQR_AFS2')
-    ax3.set_ylabel('Pred')
-    ax3.grid(True)
+# 날짜 기준 필터링된 데이터 그래프
+st.subheader("Filtered Data Graph (Date Range)")
+if not filtered_df.empty:
+    fig1, ax1 = plt.subplots(figsize=(15, 6))
+    ax1.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['Pred'], label='Pred', marker='o', linestyle='-')
+    ax1.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['SFQR_AFS2'], label='SFQR_AFS2', marker='x', linestyle='-')
+    ax1.set_xlabel('Date and Time')
+    ax1.set_ylabel('Values')
+    ax1.legend()
+    ax1.grid(True)
 
     # R² 스코어 계산 및 표시
-    r2 = r2_score(scatter_df['SFQR_AFS2'], scatter_df['Pred'])
-    ax3.set_title(f"Scatter Plot (R² = {r2:.4f})")
+    r2 = r2_score(filtered_df['SFQR_AFS2'], filtered_df['Pred'])
+    ax1.set_title(f"Filtered Data Graph (R² = {r2:.4f})")
 
-    st.pyplot(fig3)
+    st.pyplot(fig1)
+else:
+    st.warning("No data available for the selected date range.")
+
+# 산점도 그래프 추가 (날짜 기준 필터링된 데이터만 사용)
+st.subheader("Scatter Plot (Filtered Data - Pred vs SFQR_AFS2)")
+if not filtered_df.empty:
+    fig2, ax2 = plt.subplots(figsize=(10, 6))
+    ax2.scatter(filtered_df['SFQR_AFS2'], filtered_df['Pred'], alpha=0.6, c='blue')
+    ax2.set_xlabel('SFQR_AFS2')
+    ax2.set_ylabel('Pred')
+    ax2.grid(True)
+
+    # R² 스코어 계산 및 표시
+    r2 = r2_score(filtered_df['SFQR_AFS2'], filtered_df['Pred'])
+    ax2.set_title(f"Scatter Plot (R² = {r2:.4f})")
+
+    st.pyplot(fig2)
 else:
     st.warning("No data available for the scatter plot.")
 
@@ -97,21 +111,21 @@ if not filtered_df.empty:
 else:
     st.warning("No data available for the selected date range.")
 
-# WAF_ID로 필터링된 데이터 그래프
+# WAF_ID 기준 필터링된 데이터 그래프
 st.subheader("Filtered Data Based on WAF_ID")
 if not filtered_df.empty:
-    fig2, ax2 = plt.subplots(figsize=(15, 6))
-    ax2.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['Pred'], label='Pred', marker='o')
-    ax2.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['SFQR_AFS2'], label='SFQR_AFS2', marker='x')
-    ax2.set_xlabel('Date and Time')
-    ax2.set_ylabel('Values')
-    ax2.legend()
-    ax2.grid(True)
+    fig3, ax3 = plt.subplots(figsize=(15, 6))
+    ax3.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['Pred'], label='Pred', marker='o', linestyle='-')
+    ax3.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['SFQR_AFS2'], label='SFQR_AFS2', marker='x', linestyle='-')
+    ax3.set_xlabel('Date and Time')
+    ax3.set_ylabel('Values')
+    ax3.legend()
+    ax3.grid(True)
 
     # R² 스코어 계산 및 표시
     r2 = r2_score(filtered_df['SFQR_AFS2'], filtered_df['Pred'])
-    ax2.set_title(f"Filtered Data Plot (R² = {r2:.4f})")
+    ax3.set_title(f"Filtered Data by WAF_ID (R² = {r2:.4f})")
 
-    st.pyplot(fig2)
+    st.pyplot(fig3)
 else:
     st.warning("No data available for the selected WAF_ID.")
