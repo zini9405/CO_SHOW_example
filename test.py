@@ -35,14 +35,14 @@ with st.sidebar:
 filtered_df = st.session_state['df_Y'][st.session_state['df_Y']['EQP_ID_MODULE_NAME'] == selected_eqp]
 
 # 날짜와 시간 선택
-st.subheader("날짜와 시간 선택")
+st.subheader("Date and Time Selection")
 if not filtered_df.empty:
     min_datetime = pd.to_datetime(filtered_df['HST_REG_DTTM']).min()
     max_datetime = pd.to_datetime(filtered_df['HST_REG_DTTM']).max()
 
     # 명시적으로 datetime 객체를 전달하여 슬라이더 동작 수정
     start_datetime, end_datetime = st.slider(
-        "날짜와 시간을 선택하세요",
+        "Select Date and Time",
         min_value=min_datetime.to_pydatetime(),
         max_value=max_datetime.to_pydatetime(),
         value=(min_datetime.to_pydatetime(), max_datetime.to_pydatetime()),
@@ -55,40 +55,50 @@ if not filtered_df.empty:
         (pd.to_datetime(filtered_df['HST_REG_DTTM']) <= end_datetime)
     ]
 else:
-    st.warning("선택된 EQP에 대한 데이터가 없습니다.")
+    st.warning("No data available for the selected EQP.")
 
-# 필터링된 데이터(웨이퍼로 필터링 전) 그래프
-st.subheader("날짜 기준 필터링된 데이터 그래프")
+# 날짜 기준 필터링된 데이터 표시
+st.subheader("Filtered Data Based on Date")
 if not filtered_df.empty:
-    fig1, ax1 = plt.subplots(figsize=(15, 6))
-    ax1.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['Pred'], label='Pred', marker='o')
-    ax1.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['SFQR_AFS2'], label='SFQR_AFS2', marker='x')
-    ax1.set_xlabel('Date and Time')
-    ax1.set_ylabel('Values')
-    ax1.legend()
-    ax1.grid(True)
+    st.dataframe(filtered_df)
+else:
+    st.warning("No data available for the selected date range.")
+
+# 산점도 그래프 추가 (날짜 기준 모든 데이터 사용)
+st.subheader("Scatter Plot (Pred vs SFQR_AFS2)")
+scatter_df = st.session_state['df_Y'][
+    (pd.to_datetime(st.session_state['df_Y']['HST_REG_DTTM']) >= start_datetime) &
+    (pd.to_datetime(st.session_state['df_Y']['HST_REG_DTTM']) <= end_datetime)
+]
+
+if not scatter_df.empty:
+    fig3, ax3 = plt.subplots(figsize=(10, 6))
+    ax3.scatter(scatter_df['SFQR_AFS2'], scatter_df['Pred'], alpha=0.6, c='blue')
+    ax3.set_xlabel('SFQR_AFS2')
+    ax3.set_ylabel('Pred')
+    ax3.grid(True)
 
     # R² 스코어 계산 및 표시
-    r2 = r2_score(filtered_df['SFQR_AFS2'], filtered_df['Pred'])
-    ax1.set_title(f"날짜 기준 그래프 (R² = {r2:.4f})")
+    r2 = r2_score(scatter_df['SFQR_AFS2'], scatter_df['Pred'])
+    ax3.set_title(f"Scatter Plot (R² = {r2:.4f})")
 
-    st.pyplot(fig1)
+    st.pyplot(fig3)
 else:
-    st.warning("날짜 기준 필터링된 데이터가 없습니다.")
+    st.warning("No data available for the scatter plot.")
 
 # WAF_ID 선택 (날짜 필터링된 데이터 기반)
 if not filtered_df.empty:
-    st.subheader("WAF_ID 선택")
+    st.subheader("WAF_ID Selection")
     waf_id_options = filtered_df['WAF_ID'].unique()
     selected_waf_id = st.selectbox('WAF_ID', options=waf_id_options)
 
     # WAF_ID로 데이터 필터링
     filtered_df = filtered_df[filtered_df['WAF_ID'] == selected_waf_id]
 else:
-    st.warning("선택된 날짜 범위에 대한 데이터가 없습니다.")
+    st.warning("No data available for the selected date range.")
 
 # WAF_ID로 필터링된 데이터 그래프
-st.subheader("WAF_ID 기준 필터링된 데이터 그래프")
+st.subheader("Filtered Data Based on WAF_ID")
 if not filtered_df.empty:
     fig2, ax2 = plt.subplots(figsize=(15, 6))
     ax2.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['Pred'], label='Pred', marker='o')
@@ -100,25 +110,8 @@ if not filtered_df.empty:
 
     # R² 스코어 계산 및 표시
     r2 = r2_score(filtered_df['SFQR_AFS2'], filtered_df['Pred'])
-    ax2.set_title(f"WAF_ID 기준 그래프 (R² = {r2:.4f})")
+    ax2.set_title(f"Filtered Data Plot (R² = {r2:.4f})")
 
     st.pyplot(fig2)
 else:
-    st.warning("WAF_ID 기준 필터링된 데이터가 없습니다.")
-
-# 산점도 그래프 추가
-st.subheader("Pred vs SFQR_AFS2 산점도 그래프")
-if not filtered_df.empty:
-    fig3, ax3 = plt.subplots(figsize=(10, 6))
-    ax3.scatter(filtered_df['SFQR_AFS2'], filtered_df['Pred'], alpha=0.6, c='blue')
-    ax3.set_xlabel('SFQR_AFS2')
-    ax3.set_ylabel('Pred')
-    ax3.grid(True)
-
-    # R² 스코어 계산 및 표시
-    r2 = r2_score(filtered_df['SFQR_AFS2'], filtered_df['Pred'])
-    ax3.set_title(f"Pred vs SFQR_AFS2 산점도 (R² = {r2:.4f})")
-
-    st.pyplot(fig3)
-else:
-    st.warning("산점도 그래프를 그릴 데이터가 없습니다.")
+    st.warning("No data available for the selected WAF_ID.")
