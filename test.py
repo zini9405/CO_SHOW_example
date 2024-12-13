@@ -4,6 +4,7 @@ import json
 import re
 import matplotlib.pyplot as plt
 from datetime import datetime
+from sklearn.metrics import r2_score
 
 # 자연스러운 정렬을 위한 함수
 def natural_sort_key(s):
@@ -32,9 +33,7 @@ with st.sidebar:
 
 # 선택된 EQP에 따라 데이터 필터링
 filtered_df = st.session_state['df_Y'][st.session_state['df_Y']['EQP_ID_MODULE_NAME'] == selected_eqp]
-# filtered_df = st.session_state['df_Y'][st.session_state['df_Y']['EQP_ID_MODULE_NAME'] == 'CENC16B']
 
-# 날짜 선택
 # 날짜와 시간 선택
 st.subheader("날짜와 시간 선택")
 if not filtered_df.empty:
@@ -58,23 +57,26 @@ if not filtered_df.empty:
 else:
     st.warning("선택된 EQP에 대한 데이터가 없습니다.")
 
-
 # 필터링된 데이터(웨이퍼로 필터링 전) 그래프
 st.subheader("날짜 기준 필터링된 데이터 그래프")
 if not filtered_df.empty:
-    fig1, ax1 = plt.subplots(figsize=(30, 6))
+    fig1, ax1 = plt.subplots(figsize=(15, 6))
     ax1.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['Pred'], label='Pred', marker='o')
     ax1.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['SFQR_AFS2'], label='SFQR_AFS2', marker='x')
     ax1.set_xlabel('Date and Time')
     ax1.set_ylabel('Values')
     ax1.legend()
     ax1.grid(True)
+
+    # R² 스코어 계산 및 표시
+    r2 = r2_score(filtered_df['SFQR_AFS2'], filtered_df['Pred'])
+    ax1.set_title(f"날짜 기준 그래프 (R² = {r2:.4f})")
+
     st.pyplot(fig1)
 else:
     st.warning("날짜 기준 필터링된 데이터가 없습니다.")
 
-
-# WAF_ID 선택
+# WAF_ID 선택 (날짜 필터링된 데이터 기반)
 if not filtered_df.empty:
     st.subheader("WAF_ID 선택")
     waf_id_options = filtered_df['WAF_ID'].unique()
@@ -88,18 +90,35 @@ else:
 # WAF_ID로 필터링된 데이터 그래프
 st.subheader("WAF_ID 기준 필터링된 데이터 그래프")
 if not filtered_df.empty:
-    fig2, ax2 = plt.subplots(figsize=(10, 6))
+    fig2, ax2 = plt.subplots(figsize=(15, 6))
     ax2.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['Pred'], label='Pred', marker='o')
     ax2.plot(pd.to_datetime(filtered_df['HST_REG_DTTM']), filtered_df['SFQR_AFS2'], label='SFQR_AFS2', marker='x')
     ax2.set_xlabel('Date and Time')
     ax2.set_ylabel('Values')
     ax2.legend()
     ax2.grid(True)
+
+    # R² 스코어 계산 및 표시
+    r2 = r2_score(filtered_df['SFQR_AFS2'], filtered_df['Pred'])
+    ax2.set_title(f"WAF_ID 기준 그래프 (R² = {r2:.4f})")
+
     st.pyplot(fig2)
 else:
     st.warning("WAF_ID 기준 필터링된 데이터가 없습니다.")
 
+# 산점도 그래프 추가
+st.subheader("Pred vs SFQR_AFS2 산점도 그래프")
+if not filtered_df.empty:
+    fig3, ax3 = plt.subplots(figsize=(10, 6))
+    ax3.scatter(filtered_df['SFQR_AFS2'], filtered_df['Pred'], alpha=0.6, c='blue')
+    ax3.set_xlabel('SFQR_AFS2')
+    ax3.set_ylabel('Pred')
+    ax3.grid(True)
 
+    # R² 스코어 계산 및 표시
+    r2 = r2_score(filtered_df['SFQR_AFS2'], filtered_df['Pred'])
+    ax3.set_title(f"Pred vs SFQR_AFS2 산점도 (R² = {r2:.4f})")
 
-산점도 그래프도 추가하는 코드도 구현해주고 날짜 기준으로 필터링된 waf_id로 변경해줘. 지금은 전체 waf_id로 구현돼어 있어. 그리고 r2_score 값도 추가해줘
-
+    st.pyplot(fig3)
+else:
+    st.warning("산점도 그래프를 그릴 데이터가 없습니다.")
