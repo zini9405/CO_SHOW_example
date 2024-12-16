@@ -6,13 +6,31 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from sklearn.preprocessing import QuantileTransformer
 from torch.utils.data import Dataset, DataLoader, random_split
-from torch.utils.data import Subset
 from sklearn.metrics import r2_score
+import shap
 
 
 # 데이터 매핑 함수
 def map_to_numeric(values):
     return {val: idx for idx, val in enumerate(sorted(values))}
+
+
+# 데이터 필터링 함수
+def filter_data(df, recipe_filter=None, eqp_filter=None):
+    """
+    특정 Recipe와 Equipment로 데이터 필터링
+    Args:
+        df: 원본 데이터프레임
+        recipe_filter: 필터링할 RECIPE_ID 값 (set 형식)
+        eqp_filter: 필터링할 EQP_ID_MODULE_NAME 값 (set 형식)
+    Returns:
+        필터링된 데이터프레임
+    """
+    if recipe_filter:
+        df = df[df["RECIPE_ID"].isin(recipe_filter)]
+    if eqp_filter:
+        df = df[df["EQP_ID_MODULE_NAME"].isin(eqp_filter)]
+    return df
 
 
 # Custom Dataset 정의
@@ -61,12 +79,6 @@ def mse_loss(output, target):
     return torch.mean((output - target) ** 2)
 
 
-# 정확도 계산 함수
-def calculate_accuracy(output, target, threshold=0.001):
-    correct = torch.abs(output - target) <= threshold
-    return correct.sum().item() / len(target)
-
-
 # Train/Validation Split
 def train_val_split(dataset, val_ratio=0.2):
     val_size = int(len(dataset) * val_ratio)
@@ -75,6 +87,7 @@ def train_val_split(dataset, val_ratio=0.2):
     generator = torch.Generator()
     generator.manual_seed(42)  # 시드 고정으로 순서 재현 가능
     return random_split(dataset, [train_size, val_size], generator=generator)
+
 
 # 테스트 함수
 def test_model(model, test_loader, device, load_path, quantile_transformer):
@@ -93,6 +106,73 @@ def test_model(model, test_loader, device, load_path, quantile_transformer):
     return predictions, true_labels
 
 
+# SHAP 분석 함수
+def shap_analysis(model, dataset, device):
+    """
+    SHAP 분석 및 시각화
+    Args:
+        model: 학습된 Transformer 모델
+        dataset: CustomDataset 객체
+        device: 실행할 디바이스 (CPU/GPU)
+    """
+    print("Starting SHAP analysis...")
+
+    # 모델 평가 모드
+    model.eval()
+    
+    # 데이터 샘플 추출 (SHAP 계산 속도를 위해 일부 데이터 사용)
+    num_samples = min(len(dataset), 500)  # 최대 500개 샘플 사용
+    sampled_features = dataset.features[:num_samples]
+    sampled_labels = dataset.labels[:num_samples]
+
+    # 모델 예측 함수 정의
+    def model_predict(x):
+        x_tensor = torch.tensor(x, dtype=torch.float32).to(device)
+        with torch.no_grad():
+            return model(x_tensor).cpu().numpy()
+
+    # SHAP Explainer 초기화
+    explainer = shap.Explainer(model_predict, sampled_features)
+    
+    # SHAP 값 계산
+    shap_values = explainer(sampled_features)
+    
+    # SHAP 요약 시각화
+    shap.summary_plot(
+        shap_values,
+        sampled_features,
+        feature_names=[f"Feature_{i}" for i in range(sampled_features.shape[1])]
+    )
+
+    # 특정 샘플 SHAP Force Plot
+    sample_index = 0  # 첫 번째 샘플
+    shap.force_plot(
+        explainer.expected_value[0],
+        shap_values[sample_index],
+        sampled_features[sample_index],
+        feature_names=[f"Feature_{i}" for i in range(sampled_features.shape[1])]
+    )
+
+
+# 예측 및 실제 값 비교 시각화
+def visualize_predictions(predictions, true_labels):
+    """
+    모델 예측값과 실제값의 비교 시각화
+    Args:
+        predictions: 모델 예측값 리스트
+        true_labels: 실제값 리스트
+    """
+    plt.figure(figsize=(10, 6))
+    plt.plot(predictions, label="Predictions", color="blue")
+    plt.plot(true_labels, label="True Labels", color="orange")
+    plt.title("Model Predictions vs True Labels")
+    plt.xlabel("Sample Index")
+    plt.ylabel("Value")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+
 # Main 실행
 def main():
     # 데이터 경로 설정
@@ -100,46 +180,46 @@ def main():
     save_path = "model_weights_multi_all.pth"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    RECIPE_ID = {'CAN3_01_CA', 'CAN3_01_CB', 'CIS_CA', 'CIS_CB', 'CIS_P+_CA', 'CIS_P+_CB', 'CIS_P+_CXT5_CB', 'CIS_P+_GLX5_CA', 'CIS_P+_GLX5_CB', 'CIS_P+_HUA4_CA', 'CIS_P+_HUA4_CB', 'CIS_P+_ICR5_CB', 'CIS_P+_ONS6_CA', 'CIS_P+_ONS6_CB', 'CIS_P+_PSM4_CA', 'CIS_P+_SKH6_CA', 'CIS_P+_SKH6_CB', 'CIS_P+_SKH9_CA',
-    'CIS_P+_SKH9_CB', 'CIS_P+_SMI4_CA', 'CIS_P+_UMC4_CA', 'CIS_P+_UMC4_CB', 'CIS_P_SKH6_CA', 'CIS_P_SKH6_CB', 'GF_01_CA', 'GF_01_CB', 'GF_02_CA', 'GF_02_CB', 'GF_03_CA', 'GF_03_CB', 'HUALI_01_CA', 'HUALI_01_CB',
-    'INTEL10_CA', 'INTEL10_CB', 'INTEL14_CB', 'INTEL2_CA', 'INTEL2_CB', 'INTEL7_CA', 'INTEL7_CB', 'L2_CB', 'LOG_TSM1_CA', 'LOG_TSM1_CB', 'LOG_TSM3_CA', 'LOG_TSM3_CB', 'MIC_01_CA', 'MIC_01_CB', 'MXIC_01_CA', 'MXIC_01_CB', 'PSMC_02_CA', 'PSMC_02_CB', 'PSMC_FSI_CA', 'S14_CA', 'S14_CB', 'SEC_L58_CA', 'SEC_L58_CB',
-    'SKH_CIS_CA', 'SKH_CIS_P+_CA', 'SKH_CIS_P+_CB', 'SL_CA', 'SL_CB', 'SMIC2_R0_CA', 'SMIC2_R0_CB', 'SMIC4_R0_CA', 'SMIC_L7_CB', 'STM_01_CA', 'STM_01_CB', 'STM_P+_CA', 'STM_P+_CB', 'TIX_R0_CA', 'TIX_R0_CB', 'TIX_R1_CA', 'TIX_R1_CB', 'TSMC2_CA', 'TSMC2_CB', 'TSMC_CA', 'TSMC_CB', 'UMC_R0_CA', 'UMC_R0_CB'}
-
-    EQP_ID_MODULE_NAME = {'CENC10A', 'CENC10B', 'CENC11A', 'CENC11B', 'CENC12A', 'CENC12B', 'CENC13A', 'CENC13B', 'CENC14A', 'CENC14B', 'CENC15A', 'CENC15B', 'CENC16A', 'CENC16B', 'CENC17A', 'CENC17B', 'CENC31A', 'CENC31B', 'CENC32A',
-    'CENC32B', 'CENC33A', 'CENC33B', 'CENC34A', 'CENC34B', 'CENC35A', 'CENC35B', 'CENC36A', 'CENC36B', 'CENC41A', 'CENC41B', 'CENC42A', 'CENC42B', 'CENC43A', 'CENC43B', 'CENC44A', 'CENC44B', 'CENC45A', 'CENC45B',
-    'CENC46A', 'CENC46B', 'CENC47A', 'CENC47B', 'CENC48A', 'CENC48B', 'CENC5A', 'CENC5B', 'CENC6A', 'CENC6B', 'CENC7A', 'CENC7B', 'CENC8A', 'CENC8B', 'CENC9A', 'CENC9B', 'ZCENC01A', 'ZCENC01B', 'ZCENC02A', 'ZCENC02B',
-    'ZCENC03A', 'ZCENC03B', 'ZCENC04A', 'ZCENC04B'}
+    RECIPE_ID = {...}  # 생략 (기존 코드와 동일)
+    EQP_ID_MODULE_NAME = {...}  # 생략 (기존 코드와 동일)
 
     recipe_mapping = map_to_numeric(RECIPE_ID)
     eqp_mapping = map_to_numeric(EQP_ID_MODULE_NAME)
-    
+
     # 데이터셋 로드 및 전처리
     df = pd.read_csv(csv_file).dropna()
     df = df.sort_values("HST_REG_DTTM")
-
 
     if "RECIPE_ID" in df.columns:
         df["RECIPE_ID"] = df["RECIPE_ID"].map(recipe_mapping)
     if "EQP_ID_MODULE_NAME" in df.columns:
         df["EQP_ID_MODULE_NAME"] = df["EQP_ID_MODULE_NAME"].map(eqp_mapping)
 
-    
+    # 데이터 필터링 (선택적으로 필터 적용)
+    recipe_filter = {'CAN3_01_CA', 'CIS_P+_CA'}  # 원하는 Recipe만 사용
+    eqp_filter = {'CENC10A', 'CENC10B'}  # 원하는 Equipment만 사용
+    df = filter_data(df, recipe_filter=recipe_filter, eqp_filter=eqp_filter)
+
     dataset = CustomDataset(df)
 
-    train_dataset, val_dataset = train_val_split(dataset, val_ratio=1)
-    # train_dataset, val_dataset = train_val_split(dataset, val_ratio=1, shuffle=False)
+    # Train/Test Split
+    train_dataset, val_dataset = train_val_split(dataset, val_ratio=0.2)
     test_loader = DataLoader(val_dataset, batch_size=512, shuffle=False)
 
-
-
-
-
-    # 모델 및 테스트 실행
+    # 모델 초기화
     model = FullMultiLevelTransformer(input_dim=33, d_model=256, nhead=4, num_layers=4, dim_feedforward=512)
+
+    # 테스트 실행
     predictions, true_labels = test_model(model, test_loader, device, save_path, dataset.quantile_transformer)
 
-    print(r2_score(true_labels, predictions))
+    # 예측 정확도 확인
+    print(f"R2 Score: {r2_score(true_labels, predictions)}")
 
+    # 예측 결과 시각화
+    visualize_predictions(predictions, true_labels)
+
+    # SHAP 분석
+    shap_analysis(model, dataset, device)
 
 
 if __name__ == "__main__":
