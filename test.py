@@ -1,18 +1,1 @@
----------------------------------------------------------------------------
-AttributeError                            Traceback (most recent call last)
-Cell In[15], line 8
-      5 visualize_predictions(predictions, true_labels)
-      7 # SHAP 분석
-----> 8 shap_analysis(model, dataset, device, feature_names)
-
-Cell In[13], line 148
-    145 # 특정 샘플 SHAP Force Plot
-    146 sample_index = 0  # 첫 번째 샘플
-    147 shap.force_plot(
---> 148     explainer.expected_value[0],
-    149     shap_values[sample_index],
-    150     sampled_features[sample_index],
-    151     feature_names=feature_names
-    152 )
-
-AttributeError: 'PermutationExplainer' object has no attribute 'expected_value'
+http://127.0.0.1:15013/lab?token=84167dbc430ec1d1bb05771b783d2c470357c0ca36b995e1
