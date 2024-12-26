@@ -1,45 +1,185 @@
-웨이퍼 제조와 관련된 변수들은 반도체 공정의 특정 단계나 사용 재료와 관련이 있습니다. 주어진 변수들의 의미는 일반적으로 다음과 같이 해석될 수 있습니다:
+from torch.utils.data import Dataset
+import pandas as pd
+from sklearn.preprocessing import StandardScaler, QuantileTransformer, MinMaxScaler
 
-1. MAIN_RUNTIME
-	•	설명: 공정의 주요 실행 시간. 특정 웨이퍼를 가공하는 데 걸리는 시간.
-	•	의미:
-	•	이 값은 공정 효율성과 생산 속도를 평가하는 데 중요합니다.
-	•	시간이 너무 길면 공정의 병목이 발생하거나 장비 문제가 있을 수 있습니다.
-	•	짧으면 공정이 제대로 수행되지 않았을 가능성이 있습니다.
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
+import numpy as np
+import numpy as np
+from einops import rearrange, repeat
+import random
+from pathlib import Path 
+from sklearn.metrics import r2_score
+from sklearn.preprocessing import QuantileTransformer
+import numpy as np
 
-2. DD_USE_NUM (Dressing Disk 사용 횟수)
-	•	설명: 드레싱 디스크(Dressing Disk)가 사용된 횟수.
-	•	의미:
-	•	드레싱 디스크는 웨이퍼를 연마(CMP, Chemical Mechanical Polishing)하는 동안 슬러리를 균일하게 분배하거나, 패드의 상태를 유지하는 데 사용됩니다.
-	•	디스크 사용 횟수가 많으면 마모가 진행되었을 가능성이 있어 품질에 영향을 줄 수 있습니다.
-	•	사용 횟수를 모니터링하여 디스크를 교체하거나 유지 보수를 진행합니다.
 
-3. SLURRY_USE_NUM (슬러리 사용량)
-	•	설명: 연마 공정에서 사용된 슬러리(Slurry)의 사용 횟수 또는 사용량.
-	•	의미:
-	•	슬러리는 웨이퍼 표면을 평탄화하거나 불순물을 제거하는 데 사용됩니다.
-	•	사용량이 많거나 적으면 연마 품질에 영향을 줄 수 있습니다.
-	•	적정량의 슬러리를 유지해야 공정 결과의 일관성을 확보할 수 있습니다.
 
-4. PAD_COUNT (패드 사용 횟수)
-	•	설명: 연마 패드(Polishing Pad)가 사용된 횟수.
-	•	의미:
-	•	패드는 슬러리와 웨이퍼 사이에서 연마 역할을 합니다.
-	•	사용 횟수가 많아지면 패드의 마모로 인해 연마 품질이 저하될 수 있습니다.
-	•	일정 횟수 이상 사용된 패드는 교체해야 하며, 이 값을 통해 유지 보수를 계획할 수 있습니다.
+def set_seed(seed: int):
+    """
+    학습의 재현 가능성을 위해 시드를 고정합니다.
+    Args:
+        seed (int): 고정할 시드 값
+    """
+    random.seed(seed)                      # Python의 random 모듈 시드 고정
+    np.random.seed(seed)                   # NumPy 시드 고정
+    torch.manual_seed(seed)                # PyTorch CPU 시드 고정
+    torch.cuda.manual_seed(seed)           # PyTorch CUDA 시드 고정
+    torch.cuda.manual_seed_all(seed)       # 모든 GPU의 CUDA 시드 고정 (멀티 GPU 사용 시)
+    torch.backends.cudnn.deterministic = True  # CuDNN을 deterministic 모드로 설정
+    torch.backends.cudnn.benchmark = False
 
-5. CARRIER_MTL_USE_NUM (캐리어 메탈 사용 횟수)
-	•	설명: 캐리어 메탈(Carrier Metal)이 사용된 횟수.
-	•	의미:
-	•	캐리어 메탈은 웨이퍼를 공정 중에 고정하거나 이동시키는 데 사용됩니다.
-	•	사용 횟수가 많아지면 마모로 인해 웨이퍼 고정 불량, 위치 오차 등의 문제가 발생할 수 있습니다.
-	•	웨이퍼 품질을 유지하기 위해 일정 횟수 이상 사용 후 교체가 필요합니다.
 
-종합적으로:
+class MyDataset(Dataset):
+    def __init__(self, file, is_train=True, scaler=None):
+        df = pd.read_csv(file)
+        df = df[['MAIN_RUNTIME', 'DD_USE_NUM', 'SLURRY_USE_NUM', 'PAD_COUNT', 'CARRIER_MTL_USE_NUM', 'GBIR']]
+        df = df[df['GBIR']<1.0]
 
-이 변수들은 모두 반도체 제조 공정의 CMP(화학적 기계적 연마) 단계에서 사용하는 주요 자원과 공정 품질 관리 지표입니다. 웨이퍼의 평탄화 품질과 공정 효율성, 장비 상태를 평가하는 데 중요한 데이터를 제공합니다.
+        num_train = int(len(df) * 0.8)
+        if is_train:
+            data = df.iloc[:num_train]
+        else:
+            data = df.iloc[num_train:]
 
-이 데이터들은 웨이퍼 제조 공정에서:
-	•	공정 품질 (결함율, 균일성) 평가,
-	•	장비 유지보수 주기 결정,
-	•	재료 사용량 최적화 등에 활용됩니다.
+        self.X = data[['MAIN_RUNTIME', 'DD_USE_NUM', 'SLURRY_USE_NUM', 'PAD_COUNT', 'CARRIER_MTL_USE_NUM']].values
+        self.Y = data['GBIR'].values
+
+        # self.scaler = scaler
+        # if scaler: 
+        #     if is_train:
+        #         self.X = scaler.fit_transform(self.X)
+        #     else:
+        #         self.X = scaler.transform(self.X)
+
+    def __len__(self):
+        return len(self.X)
+
+    def __getitem__(self, index):
+        x = self.X[index]
+        y = self.Y[index]
+
+        x = torch.tensor(x, dtype=torch.float32)
+        y = torch.tensor(y, dtype=torch.float32) 
+        
+        return x, y
+
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
+import numpy as np
+import numpy as np
+from einops import rearrange, repeat, reduce
+import random
+from pathlib import Path 
+from sklearn.metrics import r2_score
+from sklearn.preprocessing import QuantileTransformer
+
+
+
+
+set_seed(1234)
+scaler = StandardScaler()
+trainset = MyDataset('transformed_df.csv')
+testset = MyDataset('transformed_df.csv', is_train=False)
+
+class FullMultiLevelTransformer(nn.Module):
+    def __init__(self, input_dim, d_model=64, nhead=4, num_layers=2, dim_feedforward=128, dropout=0.1):
+        super(FullMultiLevelTransformer, self).__init__()
+        self.d_model = d_model
+
+        self.feature_embedding = nn.Linear(input_dim, d_model)
+        self.feature_transformer = nn.TransformerEncoder(
+            nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward, batch_first=True, dropout=dropout),
+            num_layers=num_layers
+        )
+        self.fc = nn.Linear(d_model, 1)
+
+    def forward(self, x):
+        # print(x.shape)
+        x = self.feature_embedding(x)
+        x = rearrange(x, 'b d -> b 1 d')
+        x = self.feature_transformer(x)
+        x = reduce(x, 'b 1 d -> b d', 'mean')
+        return self.fc(x)
+
+
+# 하이퍼파라미터 및 데이터셋 준비
+seq_len = 40
+input_dim = 22  # 예시 데이터 컬럼 수
+batch_size = 256
+epochs = 2000
+learning_rate = 1e-5
+set_seed(1234)
+
+
+
+dataloader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
+
+test_dataloader = DataLoader(testset, batch_size=batch_size, shuffle=False)
+
+
+
+# print(dataset[0][0].shape)
+# 모델 초기화
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+model = FullMultiLevelTransformer(input_dim=5, d_model=256, nhead=4, num_layers=4, dim_feedforward=512)
+
+model.to(device)
+
+# 손실 함수 및 옵티마이저
+criterion = nn.HuberLoss()
+optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=50)
+                                                     
+
+# 학습 루프
+model.train()
+for epoch in range(epochs):
+    total_loss = 0
+    model.train()
+    for idx, batch in enumerate(dataloader):
+
+        inputs, targets = batch
+
+        inputs, targets = inputs.to(device), targets.to(device)
+        # print(targets)
+        # print(torch.isnan(inputs).sum())
+        # print(torch.isnan(targets).sum())
+        optimizer.zero_grad()
+        outputs = model(inputs).squeeze()
+        
+        # print(outputs.shape, targets.shape)
+        loss = criterion(outputs, targets)
+        # print(loss.item())
+        loss.backward()
+        optimizer.step()
+        scheduler.step(epoch + idx / len(dataloader))
+        total_loss += loss.item()
+
+    print(f"Epoch {epoch+1}/{epochs}, Loss: {total_loss/len(dataloader):.8f}")
+    if epoch % 10 == 0  or epoch == (epochs - 1):
+        model.eval()
+        total_loss = 0
+        target_list = []
+        pred_list = []
+        with torch.no_grad():
+            for batch in test_dataloader:
+                inputs, targets = batch
+                inputs, targets = inputs.to(device), targets.to(device)
+
+                outputs = model(inputs).squeeze()
+                pred_list.extend(outputs.cpu().detach().tolist())
+                target_list.extend(targets.cpu().detach().tolist())
+                loss = criterion(outputs, targets)
+                total_loss += loss.item()
+
+        print(f"Epoch {epoch+1}/{epochs} Val Loss: {total_loss/len(test_dataloader):.4f}")
+        print(f'r2 score: {r2_score(target_list, pred_list)}')
+
+print("Training Complete.")
