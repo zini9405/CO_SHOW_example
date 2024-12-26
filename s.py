@@ -1,15 +1,12 @@
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, VotingRegressor
+from sklearn.ensemble import RandomForestRegressor
 from xgboost import XGBRegressor
-from lightgbm import LGBMRegressor
-from catboost import CatBoostRegressor
-from sklearn.model_selection import cross_val_score, KFold
-from sklearn.metrics import mean_squared_error, make_scorer
+from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
-import torch
 import torch.nn as nn
+import torch
 
 # 데이터 로드 및 전처리
 file = 'transformed_df.csv'
@@ -23,53 +20,51 @@ df = df[df['GBIR'] < 1.0]  # 'GBIR' 값이 1 미만인 데이터만 선택
 X = df[['MAIN_RUNTIME', 'DD_USE_NUM', 'SLURRY_USE_NUM', 'PAD_COUNT', 'CARRIER_MTL_USE_NUM']].values
 y = df['GBIR'].values
 
-# 데이터 정규화
-scaler = StandardScaler()
-X = scaler.fit_transform(X)
+# 데이터 스플릿 (80% 학습 데이터, 20% 테스트 데이터)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1234)
 
-# Cross Validation 설정
-kfold = KFold(n_splits=5, shuffle=True, random_state=1234)
+# # 데이터 정규화
+# scaler = StandardScaler()
+# X_train = scaler.fit_transform(X_train)
+# X_test = scaler.transform(X_test)
 
-# PyTorch HuberLoss 정의
+# XGBoost 모델
+print("Training XGBoost Model...")
+xgb_model = XGBRegressor(
+    n_estimators=85, 
+    learning_rate=0.05, 
+    max_depth=20, 
+    subsample=0.7, 
+    colsample_bytree=1, 
+    random_state=1234
+)
+xgb_model.fit(X_train, y_train, eval_set=[(X_test, y_test)], verbose=True)
 criterion = nn.HuberLoss(delta=1.0)
 
-# 사용자 정의 Huber 손실 함수 (scikit-learn 호환)
-def huber_loss_scorer(estimator, X, y):
-    y_pred = estimator.predict(X)
-    y_pred_tensor = torch.tensor(y_pred, dtype=torch.float32)
-    y_tensor = torch.tensor(y, dtype=torch.float32)
-    return -criterion(y_pred_tensor, y_tensor).item()  # 음수 반환 (scorer는 높은 점수를 선호)
+# XGBoost 결과 평가
+xgb_pred = xgb_model.predict(X_test)
+xgb_pred_tensor = torch.tensor(xgb_pred, dtype= torch.float32)
+y_test_tensor = torch.tensor(y_test, dtype= torch.float32)
 
-huber_scorer = make_scorer(huber_loss_scorer, greater_is_better=False)
+xgb_r2 = r2_score(y_test, xgb_pred)
+# xgb_rmse = mean_squared_error(y_test, xgb_pred, squared=False)
 
-# 개별 모델 정의
-models = {
-    "XGBoost": XGBRegressor(n_estimators=500, learning_rate=0.01, max_depth=6, random_state=1234),
-    "LightGBM": LGBMRegressor(n_estimators=500, learning_rate=0.01, max_depth=6, random_state=1234),
-    "CatBoost": CatBoostRegressor(n_estimators=500, learning_rate=0.01, max_depth=6, random_state=1234, verbose=0),
-    "RandomForest": RandomForestRegressor(n_estimators=500, max_depth=10, random_state=1234),
-    "GradientBoosting": GradientBoostingRegressor(n_estimators=500, learning_rate=0.01, max_depth=6, random_state=1234),
-}
+xgb_rmse = criterion(xgb_pred_tensor, y_test_tensor)
+print(f"XGBoost R2 Score: {xgb_r2:.4f}")
+print(f"XGBoost RMSE: {xgb_rmse:.4f}")
 
-# 각 모델에 대해 Cross Validation 수행
-for name, model in models.items():
-    scores = cross_val_score(model, X, y, cv=kfold, scoring=huber_scorer)
-    print(f"{name} Cross-Val Huber Loss: {-scores.mean():.4f} (± {scores.std():.4f})")
+# # Random Forest 모델
+# print("Training Random Forest Model...")
+# rf_model = RandomForestRegressor(
+#     n_estimators=500, 
+#     max_depth=10, 
+#     random_state=1234
+# )
+# rf_model.fit(X_train, y_train)
 
-# 개별 모델 학습 및 예측
-trained_models = {name: model.fit(X, y) for name, model in models.items()}
-
-# 앙상블 모델 구성 (Voting Regressor)
-ensemble_model = VotingRegressor(estimators=[(name, model) for name, model in trained_models.items()])
-ensemble_scores = cross_val_score(ensemble_model, X, y, cv=kfold, scoring=huber_scorer)
-print(f"Ensemble Model Cross-Val Huber Loss: {-ensemble_scores.mean():.4f} (± {ensemble_scores.std():.4f})")
-
-# 앙상블 모델 최종 학습
-ensemble_model.fit(X, y)
-
-# 예측 및 평가
-y_pred = ensemble_model.predict(X)
-y_pred_tensor = torch.tensor(y_pred, dtype=torch.float32)
-y_tensor = torch.tensor(y, dtype=torch.float32)
-final_loss = criterion(y_pred_tensor, y_tensor)
-print(f"Ensemble Model Final Huber Loss: {final_loss.item():.4f}")
+# # Random Forest 결과 평가
+# rf_pred = rf_model.predict(X_test)
+# rf_r2 = r2_score(y_test, rf_pred)
+# rf_rmse = mean_squared_error(y_test, rf_pred, squared=False)
+# print(f"Random Forest R2 Score: {rf_r2:.4f}")
+# print(f"Random Forest RMSE: {rf_rmse:.4f}")
