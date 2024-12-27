@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class AdaptiveHierarchicalModel(nn.Module):
-    def __init__(self, input_dim, hidden_dim, output_dim, num_steps):
+    def __init__(self, input_dim, hidden_dim, output_dim, num_steps, num_heads):
         """
         Initialize the model.
 
@@ -12,31 +12,34 @@ class AdaptiveHierarchicalModel(nn.Module):
         - hidden_dim: Number of hidden dimensions for embeddings.
         - output_dim: Output dimension (e.g., 1 for regression).
         - num_steps: Number of time steps (e.g., 12).
+        - num_heads: Number of attention heads.
         """
         super(AdaptiveHierarchicalModel, self).__init__()
         
         # Parameters
         self.num_steps = num_steps
+        self.hidden_dim = hidden_dim
+        self.num_heads = num_heads
         
-        # Latent Graph Construction
-        self.query_layer = nn.Linear(input_dim, hidden_dim)  # For Q
-        self.key_layer = nn.Linear(input_dim, hidden_dim)    # For K
+        # Latent Graph Construction (Multi-Head Attention)
+        self.mha = nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=num_heads, batch_first=True)
+        self.input_projection = nn.Linear(input_dim, hidden_dim)
         
         # GNN Layers for local relationships
         self.gnn_layers = nn.ModuleList([nn.Linear(hidden_dim, hidden_dim) for _ in range(3)])
         
         # Local Attention (for step importance within subgraphs)
-        self.local_attention = nn.Linear(hidden_dim, 1)
+        self.local_attention = nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=num_heads, batch_first=True)
         
         # Global Attention (for subgraph relationships)
-        self.global_attention = nn.Linear(hidden_dim, 1)
+        self.global_attention = nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=num_heads, batch_first=True)
         
         # Step Selection Attention
-        self.step_attention = nn.Linear(hidden_dim, 1)
+        self.step_attention = nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=num_heads, batch_first=True)
         
         # Regression Layer
         self.regressor = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim),
+            nn.Linear(hidden_dim * 2, hidden_dim),  # Combine local & global
             nn.ReLU(),
             nn.Linear(hidden_dim, output_dim)
         )
@@ -53,66 +56,49 @@ class AdaptiveHierarchicalModel(nn.Module):
         - step_scores: Attention scores for each step (batch_size, num_steps).
         """
         # Step 1: Latent Graph Construction
-        S = self.compute_similarity(X)  # Graph adjacency matrix (batch_size, num_steps, num_steps)
-        sparse_S = self.apply_sparsity(S)  # Apply sparsity to reduce weak relationships
+        H_projected = self.input_projection(X)  # Project input to hidden_dim
+        H_latent, latent_scores = self.compute_latent_graph(H_projected)  # Apply Multi-Head Attention
         
         # Step 2: Local Relationship Learning (GNN + Attention)
-        H_local = self.local_relationships(X, sparse_S)  # Shape: (batch_size, num_steps, hidden_dim)
+        H_local = self.local_relationships(H_latent)  # Shape: (batch_size, num_steps, hidden_dim)
         
         # Step 3: Global Relationship Learning (Subgraph Aggregation)
         H_global = self.global_relationships(H_local)  # Shape: (batch_size, hidden_dim)
         
         # Step 4: Step Selection
-        step_scores = torch.softmax(self.step_attention(H_local), dim=1)  # Step importance scores
-        H_selected = torch.sum(step_scores * H_local, dim=1)  # Weighted sum of steps
+        H_selected, step_scores = self.step_selection(H_local, H_global)  # Select important steps
         
         # Step 5: Regression
         y = self.regressor(H_selected)  # Predict the output
         
         return y, step_scores
 
-    def compute_similarity(self, X):
+    def compute_latent_graph(self, X):
         """
-        Compute similarity matrix S for step relationships.
+        Compute latent graph using Multi-Head Attention.
 
         Args:
-        - X: Input tensor of shape (batch_size, num_steps, input_dim).
+        - X: Input tensor of shape (batch_size, num_steps, hidden_dim).
 
         Returns:
-        - S: Similarity matrix of shape (batch_size, num_steps, num_steps).
+        - H_latent: Latent graph embeddings (batch_size, num_steps, hidden_dim).
+        - latent_scores: Attention scores (batch_size, num_heads, num_steps, num_steps).
         """
-        Q = self.query_layer(X)  # Query vector (batch_size, num_steps, hidden_dim)
-        K = self.key_layer(X)    # Key vector (batch_size, num_steps, hidden_dim)
-        S = torch.matmul(Q, K.transpose(-2, -1)) / torch.sqrt(torch.tensor(Q.size(-1), dtype=torch.float32))  # Scaled dot-product
-        return torch.softmax(S, dim=-1)
+        H_latent, latent_scores = self.mha(X, X, X, need_weights=True)
+        return H_latent, latent_scores
 
-    def apply_sparsity(self, S, threshold=0.1):
-        """
-        Apply sparsity to the similarity matrix.
-
-        Args:
-        - S: Similarity matrix of shape (batch_size, num_steps, num_steps).
-        - threshold: Minimum value to keep a connection.
-
-        Returns:
-        - sparse_S: Sparse similarity matrix of the same shape.
-        """
-        return (S > threshold).float() * S  # Retain values above the threshold
-
-    def local_relationships(self, X, S):
+    def local_relationships(self, H):
         """
         Learn local relationships using GNN layers.
 
         Args:
-        - X: Input tensor of shape (batch_size, num_steps, input_dim).
-        - S: Sparse similarity matrix (batch_size, num_steps, num_steps).
+        - H: Input embeddings of shape (batch_size, num_steps, hidden_dim).
 
         Returns:
         - H_local: Hidden embeddings for each step (batch_size, num_steps, hidden_dim).
         """
-        H = X
         for gnn_layer in self.gnn_layers:
-            H = F.relu(gnn_layer(torch.matmul(S, H)))  # GNN propagation
+            H = F.relu(gnn_layer(H))  # GNN propagation
         return H
 
     def global_relationships(self, H_local):
@@ -125,10 +111,27 @@ class AdaptiveHierarchicalModel(nn.Module):
         Returns:
         - H_global: Aggregated global embedding (batch_size, hidden_dim).
         """
-        scores = torch.softmax(self.global_attention(H_local), dim=1)  # Subgraph importance scores
-        H_global = torch.sum(scores * H_local, dim=1)  # Weighted sum of subgraph embeddings
-        return H_global
+        H_global, _ = self.global_attention(H_local, H_local, H_local)
+        return torch.mean(H_global, dim=1)  # Aggregate over all steps
+
+    def step_selection(self, H_local, H_global):
+        """
+        Select important steps using step-level Multi-Head Attention and combine with global information.
+
+        Args:
+        - H_local: Hidden embeddings for each step (batch_size, num_steps, hidden_dim).
+        - H_global: Global embedding for the entire sequence (batch_size, hidden_dim).
+
+        Returns:
+        - H_selected: Combined embedding of important steps and global information (batch_size, hidden_dim * 2).
+        - step_scores: Attention scores for each step (batch_size, num_steps).
+        """
+        # Step-level attention
+        H_step, step_scores = self.step_attention(H_local, H_local, H_local, need_weights=True)
         
+        # Combine selected steps with global embedding
+        H_selected = torch.cat([H_global, torch.sum(step_scores.unsqueeze(-1) * H_local, dim=1)], dim=-1)
+        return H_selected, step_scores
         
         
         # 모델 초기화
@@ -136,7 +139,8 @@ input_dim = 33  # 33개의 변수
 hidden_dim = 64  # 히든 레이어 크기
 output_dim = 1  # 예측값 (회귀)
 num_steps = 12  # 12개의 step
-model = AdaptiveHierarchicalModel(input_dim, hidden_dim, output_dim, num_steps)
+num_heads = 4   # Multi-Head Attention의 head 수
+model = AdaptiveHierarchicalModel(input_dim, hidden_dim, output_dim, num_steps, num_heads)
 
 # 가상 데이터 생성
 batch_size = 8
