@@ -2,178 +2,181 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+class DynamicGraphModel(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim, num_steps, num_heads, num_subgraphs):
+        """
+        Initialize the model.
 
-class GLU(nn.Module):
-    def __init__(self, input_channel, output_channel):
-        super(GLU, self).__init__()
-        self.linear_left = nn.Linear(input_channel, output_channel)
-        self.linear_right = nn.Linear(input_channel, output_channel)
-
-    def forward(self, x):
-        return torch.mul(self.linear_left(x), torch.sigmoid(self.linear_right(x)))
-
-
-class StockBlockLayer(nn.Module):
-    def __init__(self, time_step, unit, multi_layer, stack_cnt=0):
-        super(StockBlockLayer, self).__init__()
-        self.time_step = time_step
-        self.unit = unit
-        self.stack_cnt = stack_cnt
-        self.multi = multi_layer
-        self.weight = nn.Parameter(
-            torch.Tensor(1, 3 + 1, 1, self.time_step * self.multi,
-                         self.multi * self.time_step))  # [K+1, 1, in_c, out_c]
-        nn.init.xavier_normal_(self.weight)
-        self.forecast = nn.Linear(self.time_step * self.multi, self.time_step * self.multi)
-        self.forecast_result = nn.Linear(self.time_step * self.multi, self.time_step)
-        if self.stack_cnt == 0:
-            self.backcast = nn.Linear(self.time_step * self.multi, self.time_step)
-        self.backcast_short_cut = nn.Linear(self.time_step, self.time_step)
-        self.relu = nn.ReLU()
-        self.GLUs = nn.ModuleList()
-        self.output_channel = 4 * self.multi
-        for i in range(3):
-            if i == 0:
-                self.GLUs.append(GLU(self.time_step * 4, self.time_step * self.output_channel))
-                self.GLUs.append(GLU(self.time_step * 4, self.time_step * self.output_channel))
-            elif i == 1:
-                self.GLUs.append(GLU(self.time_step * self.output_channel, self.time_step * self.output_channel))
-                self.GLUs.append(GLU(self.time_step * self.output_channel, self.time_step * self.output_channel))
-            else:
-                self.GLUs.append(GLU(self.time_step * self.output_channel, self.time_step * self.output_channel))
-                self.GLUs.append(GLU(self.time_step * self.output_channel, self.time_step * self.output_channel))
-
-    def spe_seq_cell(self, input):
-        batch_size, k, input_channel, node_cnt, time_step = input.size()
-        input = input.view(batch_size, -1, node_cnt, time_step)
-        ffted = torch.rfft(input, 1, onesided=False)
-        real = ffted[..., 0].permute(0, 2, 1, 3).contiguous().reshape(batch_size, node_cnt, -1)
-        img = ffted[..., 1].permute(0, 2, 1, 3).contiguous().reshape(batch_size, node_cnt, -1)
-        for i in range(3):
-            real = self.GLUs[i * 2](real)
-            img = self.GLUs[2 * i + 1](img)
-        real = real.reshape(batch_size, node_cnt, 4, -1).permute(0, 2, 1, 3).contiguous()
-        img = img.reshape(batch_size, node_cnt, 4, -1).permute(0, 2, 1, 3).contiguous()
-        time_step_as_inner = torch.cat([real.unsqueeze(-1), img.unsqueeze(-1)], dim=-1)
-        iffted = torch.irfft(time_step_as_inner, 1, onesided=False)
-        return iffted
-
-    def forward(self, x, mul_L):
-        mul_L = mul_L.unsqueeze(1)
-        x = x.unsqueeze(1)
-        gfted = torch.matmul(mul_L, x)
-        gconv_input = self.spe_seq_cell(gfted).unsqueeze(2)
-        igfted = torch.matmul(gconv_input, self.weight)
-        igfted = torch.sum(igfted, dim=1)
-        forecast_source = torch.sigmoid(self.forecast(igfted).squeeze(1))
-        forecast = self.forecast_result(forecast_source)
-        if self.stack_cnt == 0:
-            backcast_short = self.backcast_short_cut(x).squeeze(1)
-            backcast_source = torch.sigmoid(self.backcast(igfted) - backcast_short)
-        else:
-            backcast_source = None
-        return forecast, backcast_source
-
-
-class Model(nn.Module):
-    def __init__(self, units, stack_cnt, time_step, multi_layer, horizon=1, dropout_rate=0.5, leaky_rate=0.2,
-                 device='cpu'):
-        super(Model, self).__init__()
-        self.unit = units
-        self.stack_cnt = stack_cnt
-        self.unit = units
-        self.alpha = leaky_rate
-        self.time_step = time_step
-        self.horizon = horizon
-        self.weight_key = nn.Parameter(torch.zeros(size=(self.unit, 1)))
-        nn.init.xavier_uniform_(self.weight_key.data, gain=1.414)
-        self.weight_query = nn.Parameter(torch.zeros(size=(self.unit, 1)))
-        nn.init.xavier_uniform_(self.weight_query.data, gain=1.414)
-        self.GRU = nn.GRU(self.time_step, self.unit)
-        self.multi_layer = multi_layer
-        self.stock_block = nn.ModuleList()
-        self.stock_block.extend(
-            [StockBlockLayer(self.time_step, self.unit, self.multi_layer, stack_cnt=i) for i in range(self.stack_cnt)])
-        self.fc = nn.Sequential(
-            nn.Linear(int(self.time_step), int(self.time_step)),
-            nn.LeakyReLU(),
-            nn.Linear(int(self.time_step), self.horizon),
+        Args:
+        - input_dim: Number of input features for each step (e.g., 33).
+        - hidden_dim: Number of hidden dimensions for embeddings.
+        - output_dim: Output dimension (e.g., 1 for regression).
+        - num_steps: Number of time steps (e.g., 12).
+        - num_heads: Number of attention heads.
+        - num_subgraphs: Number of dynamically constructed subgraphs.
+        """
+        super(DynamicGraphModel, self).__init__()
+        
+        # Parameters
+        self.num_steps = num_steps
+        self.num_subgraphs = num_subgraphs
+        
+        # Latent Graph Construction
+        self.query_layer = nn.Linear(input_dim, hidden_dim)
+        self.key_layer = nn.Linear(input_dim, hidden_dim)
+        self.value_layer = nn.Linear(input_dim, hidden_dim)
+        
+        # Local Graph Learning (per subgraph)
+        self.local_gnn = nn.ModuleList([nn.Linear(hidden_dim, hidden_dim) for _ in range(3)])
+        
+        # Global Graph Learning
+        self.global_attention = nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=num_heads, batch_first=True)
+        
+        # Step Selection Attention
+        self.step_attention = nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=num_heads, batch_first=True)
+        
+        # Regression Layer
+        self.regressor = nn.Sequential(
+            nn.Linear(hidden_dim * 2, hidden_dim),  # Combine local & global
+            nn.ReLU(),
+            nn.Linear(hidden_dim, output_dim)
         )
-        self.leakyrelu = nn.LeakyReLU(self.alpha)
-        self.dropout = nn.Dropout(p=dropout_rate)
-        self.to(device)
-
-    def get_laplacian(self, graph, normalize):
+    
+    def forward(self, X):
         """
-        return the laplacian of the graph.
-        :param graph: the graph structure without self loop, [N, N].
-        :param normalize: whether to used the normalized laplacian.
-        :return: graph laplacian.
+        Forward pass through the model.
+
+        Args:
+        - X: Input tensor of shape (batch_size, num_steps, input_dim).
+        
+        Returns:
+        - y: Predicted output of shape (batch_size, output_dim).
+        - step_scores: Attention scores for each step (batch_size, num_steps).
         """
-        if normalize:
-            D = torch.diag(torch.sum(graph, dim=-1) ** (-1 / 2))
-            L = torch.eye(graph.size(0), device=graph.device, dtype=graph.dtype) - torch.mm(torch.mm(D, graph), D)
-        else:
-            D = torch.diag(torch.sum(graph, dim=-1))
-            L = D - graph
-        return L
+        # Step 1: Latent Graph Construction
+        S = self.compute_similarity(X)  # Graph adjacency matrix (batch_size, num_steps, num_steps)
+        subgraphs = self.create_subgraphs(S)  # Dynamically create subgraphs
+        
+        # Step 2: Local Graph Learning
+        H_local = self.local_graph_learning(X, subgraphs)  # Local embeddings
+        
+        # Step 3: Global Graph Learning
+        H_global = self.global_graph_learning(H_local)  # Global embedding
+        
+        # Step 4: Step Selection
+        H_selected, step_scores = self.step_selection(H_local, H_global)  # Select important steps
+        
+        # Step 5: Regression
+        y = self.regressor(H_selected)  # Predict the output
+        
+        return y, step_scores
 
-    def cheb_polynomial(self, laplacian):
+    def compute_similarity(self, X):
         """
-        Compute the Chebyshev Polynomial, according to the graph laplacian.
-        :param laplacian: the graph laplacian, [N, N].
-        :return: the multi order Chebyshev laplacian, [K, N, N].
+        Compute similarity matrix S for step relationships.
+
+        Args:
+        - X: Input tensor of shape (batch_size, num_steps, input_dim).
+
+        Returns:
+        - S: Similarity matrix of shape (batch_size, num_steps, num_steps).
         """
-        N = laplacian.size(0)  # [N, N]
-        laplacian = laplacian.unsqueeze(0)
-        first_laplacian = torch.zeros([1, N, N], device=laplacian.device, dtype=torch.float)
-        second_laplacian = laplacian
-        third_laplacian = (2 * torch.matmul(laplacian, second_laplacian)) - first_laplacian
-        forth_laplacian = 2 * torch.matmul(laplacian, third_laplacian) - second_laplacian
-        multi_order_laplacian = torch.cat([first_laplacian, second_laplacian, third_laplacian, forth_laplacian], dim=0)
-        return multi_order_laplacian
+        Q = self.query_layer(X)  # Query vector
+        K = self.key_layer(X)    # Key vector
+        S = torch.matmul(Q, K.transpose(-2, -1)) / torch.sqrt(torch.tensor(Q.size(-1), dtype=torch.float32))  # Scaled dot-product
+        return torch.softmax(S, dim=-1)
 
-    def latent_correlation_layer(self, x):
-        input, _ = self.GRU(x.permute(2, 0, 1).contiguous())
-        input = input.permute(1, 0, 2).contiguous()
-        attention = self.self_graph_attention(input)
-        attention = torch.mean(attention, dim=0)
-        degree = torch.sum(attention, dim=1)
-        # laplacian is sym or not
-        attention = 0.5 * (attention + attention.T)
-        degree_l = torch.diag(degree)
-        diagonal_degree_hat = torch.diag(1 / (torch.sqrt(degree) + 1e-7))
-        laplacian = torch.matmul(diagonal_degree_hat,
-                                 torch.matmul(degree_l - attention, diagonal_degree_hat))
-        mul_L = self.cheb_polynomial(laplacian)
-        return mul_L, attention
+    def create_subgraphs(self, S):
+        """
+        Dynamically create subgraphs based on the similarity matrix.
 
-    def self_graph_attention(self, input):
-        input = input.permute(0, 2, 1).contiguous()
-        bat, N, fea = input.size()
-        key = torch.matmul(input, self.weight_key)
-        query = torch.matmul(input, self.weight_query)
-        data = key.repeat(1, 1, N).view(bat, N * N, 1) + query.repeat(1, N, 1)
-        data = data.squeeze(2)
-        data = data.view(bat, N, -1)
-        data = self.leakyrelu(data)
-        attention = F.softmax(data, dim=2)
-        attention = self.dropout(attention)
-        return attention
+        Args:
+        - S: Similarity matrix of shape (batch_size, num_steps, num_steps).
 
-    def graph_fft(self, input, eigenvectors):
-        return torch.matmul(eigenvectors, input)
+        Returns:
+        - subgraphs: List of subgraph masks (batch_size, num_subgraphs, num_steps, num_steps).
+        """
+        batch_size, num_steps, _ = S.size()
+        subgraphs = []
+        
+        for _ in range(self.num_subgraphs):
+            mask = torch.zeros_like(S)
+            for b in range(batch_size):
+                # Select top-k steps based on similarity scores
+                top_indices = torch.topk(S[b].sum(dim=0), k=self.num_steps // self.num_subgraphs).indices
+                for idx in top_indices:
+                    mask[b, idx, idx] = 1
+            subgraphs.append(mask)
+        
+        return subgraphs
 
-    def forward(self, x):
-        mul_L, attention = self.latent_correlation_layer(x)
-        X = x.unsqueeze(1).permute(0, 1, 3, 2).contiguous()
-        result = []
-        for stack_i in range(self.stack_cnt):
-            forecast, X = self.stock_block[stack_i](X, mul_L)
-            result.append(forecast)
-        forecast = result[0] + result[1]
-        forecast = self.fc(forecast)
-        if forecast.size()[-1] == 1:
-            return forecast.unsqueeze(1).squeeze(-1), attention
-        else:
-            return forecast.permute(0, 2, 1).contiguous(), attention
+    def local_graph_learning(self, X, subgraphs):
+        """
+        Learn local relationships within dynamically constructed subgraphs.
+
+        Args:
+        - X: Input tensor of shape (batch_size, num_steps, input_dim).
+        - subgraphs: List of subgraph masks (batch_size, num_subgraphs, num_steps, num_steps).
+
+        Returns:
+        - H_local: Local embeddings for each step (batch_size, num_steps, hidden_dim).
+        """
+        H = self.value_layer(X)  # Project input to hidden_dim
+        for gnn_layer in self.local_gnn:
+            H_new = torch.zeros_like(H)
+            for mask in subgraphs:
+                # Apply the subgraph mask to aggregate local information
+                H_new += torch.relu(gnn_layer(torch.matmul(mask, H)))
+            H = H_new / len(subgraphs)  # Normalize by the number of subgraphs
+        return H
+
+    def global_graph_learning(self, H_local):
+        """
+        Learn global relationships using global attention.
+
+        Args:
+        - H_local: Local embeddings of shape (batch_size, num_steps, hidden_dim).
+
+        Returns:
+        - H_global: Aggregated global embedding (batch_size, hidden_dim).
+        """
+        H_global, _ = self.global_attention(H_local, H_local, H_local)
+        return torch.mean(H_global, dim=1)  # Aggregate over all steps
+
+    def step_selection(self, H_local, H_global):
+        """
+        Select important steps using step-level Multi-Head Attention.
+
+        Args:
+        - H_local: Local embeddings for each step (batch_size, num_steps, hidden_dim).
+        - H_global: Global embedding for the entire sequence (batch_size, hidden_dim).
+
+        Returns:
+        - H_selected: Combined embedding of important steps and global information (batch_size, hidden_dim * 2).
+        - step_scores: Attention scores for each step (batch_size, num_steps).
+        """
+        H_step, step_scores = self.step_attention(H_local, H_local, H_local, need_weights=True)
+        H_selected = torch.cat([H_global, torch.sum(step_scores.unsqueeze(-1) * H_local, dim=1)], dim=-1)
+        return H_selected, step_scores
+        
+        
+        
+        # 모델 초기화
+input_dim = 33  # 33개의 변수
+hidden_dim = 64  # 히든 레이어 크기
+output_dim = 1  # 예측값 (회귀)
+num_steps = 12  # 12개의 step
+num_heads = 4   # Multi-Head Attention의 head 수
+num_subgraphs = 3  # 서브그래프 개수
+model = DynamicGraphModel(input_dim, hidden_dim, output_dim, num_steps, num_heads, num_subgraphs)
+
+# 가상 데이터 생성
+batch_size = 8
+X = torch.rand(batch_size, num_steps, input_dim)  # 입력 데이터
+
+# 모델 실행
+y, step_scores = model(X)
+
+# 결과 출력
+print("Predicted Output (y):", y)  # (batch_size, output_dim)
+print("Step Importance Scores:", step_scores)  # (batch_size, num_steps)
