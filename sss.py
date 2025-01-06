@@ -1,9 +1,5 @@
-# 정규화 
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
-
-
-df = cleaned_df
 
 # 표준화 제외할 열 정의
 exclude_columns = ['SFQR_AFS2', 'ESFQR2_MAX_AFS2', 'ZDDFRONTMEAN_01_AFS2', 'ESFQD_ZONE1MEAN_AFS2', 'ESFQD_ZONE1MAX_AFS2', 'ESFQD2_ZONE1MEAN_AFS2', 'ESFQD2_ZONE1MAX_AFS2',
@@ -12,9 +8,8 @@ exclude_columns = ['SFQR_AFS2', 'ESFQR2_MAX_AFS2', 'ZDDFRONTMEAN_01_AFS2', 'ESFQ
 # 숫자형 열 중 제외할 열 제외
 numerical_columns = [col for col in df.select_dtypes(include=['number']).columns if col not in exclude_columns]
 
+# 정규화 수행
 df.replace(-20, float('nan'), inplace=True)
-
-# 표준화 수행
 df_standardized = df.copy()
 scaler = StandardScaler()
 
@@ -28,22 +23,30 @@ expanded_ranges = {
     for col in numerical_columns
 }
 
-# 표준화 적용
+# 표준화 적용 및 원본 범위 저장
+scalers = {}
 for col in numerical_columns:
     expanded_min = expanded_ranges[col]['min']
     expanded_max = expanded_ranges[col]['max']
     
     # 범위 내에서만 표준화 수행
     mask = (df[col] >= expanded_min) & (df[col] <= expanded_max)
-    standardized_values = scaler.fit_transform(df.loc[mask, [col]])
+    scalers[col] = StandardScaler()  # 각 열에 대해 scaler 저장
+    standardized_values = scalers[col].fit_transform(df.loc[mask, [col]])
     df_standardized.loc[mask, col] = standardized_values
 
-# 결과 저장
-df_standardized.to_csv('all_minmax.csv', index=False)
-
-# 출력: 최대/최소값과 확장된 범위
-print("열별 최대값, 최소값 및 확장된 범위:")
+# 원본값으로 복원
+df_restored = df_standardized.copy()
 for col in numerical_columns:
-    print(f"{col}:")
-    print(f"  원래 최소값: {max_min_values.loc['min', col]:.2f}, 최대값: {max_min_values.loc['max', col]:.2f}")
-    print(f"  확장된 최소값: {expanded_ranges[col]['min']:.2f}, 확장된 최대값: {expanded_ranges[col]['max']:.2f}")
+    expanded_min = expanded_ranges[col]['min']
+    expanded_max = expanded_ranges[col]['max']
+    
+    # 범위 내에서만 역변환 수행
+    mask = (df[col] >= expanded_min) & (df[col] <= expanded_max)
+    restored_values = scalers[col].inverse_transform(df_standardized.loc[mask, [col]])
+    df_restored.loc[mask, col] = restored_values
+
+# 결과 저장
+df_restored.to_csv('restored_values.csv', index=False)
+
+print("정규화된 값을 원본값으로 복원 완료!")
