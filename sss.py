@@ -1,30 +1,23 @@
----------------------------------------------------------------------------
-IndexError                                Traceback (most recent call last)
-Cell In[17], line 176
-    173     visualize_attention_scores(model, dataset.feature_names)
-    175 if __name__ == "__main__":
---> 176     main()
+def visualize_attention_scores(model, feature_names):
+    """
+    Attention Weights를 시각화하여 변수별 중요도 출력
+    """
+    attention_maps = model.get_attention_maps()  # Attention Weights 가져오기
+    last_attention_map = attention_maps[-1].squeeze(0).detach().cpu().numpy()  # 마지막 레이어 사용
+    avg_attention = np.mean(last_attention_map, axis=0)  # 각 Feature에 대한 평균 Attention Score 계산
 
-Cell In[17], line 173
-    170 # Forward 실행
-    171 _ = model(sample_features, sample_eqp_ids)
---> 173 visualize_attention_scores(model, dataset.feature_names)
+    # Feature 중요도 정렬
+    sorted_indices = np.argsort(-avg_attention)  # 중요도 순서대로 정렬
 
-Cell In[17], line 99
-     97 print("\nFeature Importance:")
-     98 for idx in sorted_indices:
----> 99     print(f"{feature_names[idx]}: {avg_attention[idx]:.4f}")
-    101 # 시각화
-    102 plt.figure(figsize=(10, 6))
+    print("\nFeature Importance:")
+    for idx in sorted_indices:
+        print(f"{feature_names[idx]}: {avg_attention[idx]:.4f}")
 
-File c:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\core\indexes\base.py:5389, in Index.__getitem__(self, key)
-   5386 if is_integer(key) or is_float(key):
-   5387     # GH#44051 exclude bool, which would return a 2d ndarray
-   5388     key = com.cast_scalar_indexer(key)
--> 5389     return getitem(key)
-   5391 if isinstance(key, slice):
-   5392     # This case is separated from the conditional above to avoid
-   5393     # pessimization com.is_bool_indexer and ndim checks.
-   5394     return self._getitem_slice(key)
-
-IndexError: index 300 is out of bounds for axis 0 with size 32
+    # 시각화
+    plt.figure(figsize=(10, 6))
+    plt.bar(range(len(feature_names)), avg_attention[sorted_indices], tick_label=[feature_names[i] for i in sorted_indices])
+    plt.xticks(rotation=45, ha='right')
+    plt.title("Feature Importance (Attention Scores)")
+    plt.ylabel("Attention Score")
+    plt.tight_layout()
+    plt.show()
