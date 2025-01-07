@@ -116,10 +116,11 @@ def compute_variable_importance(attention_scores):
     Returns:
         importance_scores: Tensor of shape (seq_len,)
     """
-    # 어텐션 점수 평균
-    head_mean_scores = attention_scores.mean(dim=1)  # (batch_size, seq_len, seq_len)
-    batch_mean_scores = head_mean_scores.mean(dim=0)  # (seq_len, seq_len)
-    variable_importance = batch_mean_scores.mean(dim=0)  # (seq_len,)
+    # 1. 배치와 헤드 차원을 평균
+    mean_attention = attention_scores.mean(dim=(0, 1))  # (seq_len, seq_len)
+
+    # 2. Query 기준으로 평균을 내어 변수별 중요도 계산
+    variable_importance = mean_attention.mean(dim=0)  # (seq_len,)
     return variable_importance
 
 
