@@ -1,26 +1,41 @@
-def visualize_attention_scores(model, feature_names):
-    """
-    Attention Weights를 시각화하여 변수별 중요도 출력
-    """
-    attention_maps = model.get_attention_maps()  # Attention Weights 가져오기
-    last_attention_map = attention_maps[-1]  # 마지막 레이어 Attention Map 가져오기
-    last_attention_map = last_attention_map.mean(dim=1).squeeze(0).detach().cpu().numpy()  # Query와 Key 간 평균 계산
+import torch
+import torch.nn as nn
 
-    # Feature별 평균 Attention Score 계산
-    avg_attention = np.mean(last_attention_map, axis=0)  # 각 Feature에 대한 평균 Attention Score
+class SelfAttention(nn.Module):
+    def __init__(self, input_dim, num_heads):
+        super(SelfAttention, self).__init__()
+        self.multihead_attn = nn.MultiheadAttention(embed_dim=input_dim, num_heads=num_heads)
+    
+    def forward(self, x):
+        # x: (seq_len, batch_size, input_dim)
+        attn_output, attn_weights = self.multihead_attn(x, x, x)
+        # attn_weights: (batch_size, num_heads, seq_len, seq_len)
+        return attn_weights
 
-    # Feature 중요도 정렬
-    sorted_indices = np.argsort(-avg_attention)  # 중요도 순서대로 정렬
+# Example parameters
+input_dim = 33  # Number of features
+seq_len = 33    # Sequence length (e.g., each variable treated as a sequence position)
+batch_size = 1  # Single batch for simplicity
+num_heads = 1   # Number of attention heads
 
-    print("\nFeature Importance:")
-    for idx in sorted_indices:
-        print(f"{feature_names[idx]}: {avg_attention[idx]:.4f}")
+# Generate random input tensor
+x = torch.rand(seq_len, batch_size, input_dim)
 
-    # 시각화
-    plt.figure(figsize=(10, 6))
-    plt.bar(range(len(feature_names)), avg_attention[sorted_indices], tick_label=[feature_names[i] for i in sorted_indices])
-    plt.xticks(rotation=45, ha='right')
-    plt.title("Feature Importance (Attention Scores)")
-    plt.ylabel("Attention Score")
-    plt.tight_layout()
-    plt.show()
+# Define and apply Self-Attention
+self_attention = SelfAttention(input_dim=input_dim, num_heads=num_heads)
+attn_weights = self_attention(x)  # Shape: (batch_size, num_heads, seq_len, seq_len)
+
+# Extract attention scores for the first head
+attn_scores = attn_weights[0, 0]  # Shape: (seq_len, seq_len)
+
+# Calculate average attention score for each variable
+avg_scores = attn_scores.mean(dim=0).detach().numpy()
+
+# Sort variables by attention scores in descending order
+sorted_indices = avg_scores.argsort()[::-1]
+sorted_scores = avg_scores[sorted_indices]
+
+# Print results
+print("Variables sorted by attention scores:")
+for i, idx in enumerate(sorted_indices):
+    print(f"Rank {i+1}: Variable {idx}, Score: {sorted_scores[i]}")
