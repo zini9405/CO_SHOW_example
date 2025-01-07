@@ -1,79 +1,142 @@
-        import torch
-from torch import nn
-from einops import rearrange
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 
-# Custom Transformer Encoder Layer for extracting attention scores
-class CustomTransformerEncoderLayer(nn.TransformerEncoderLayer):
-    def __init__(self, *args, **kwargs):
-        super(CustomTransformerEncoderLayer, self).__init__(*args, **kwargs)
-        self.attention_scores = None  # Store attention scores
+# Custom Multihead Self-Attention Layer
+class CustomMultiheadAttention(nn.Module):
+    def __init__(self, d_model, nhead):
+        super(CustomMultiheadAttention, self).__init__()
+        self.d_model = d_model
+        self.nhead = nhead
+        self.head_dim = d_model // nhead
 
-    def forward(self, src, src_mask=None, src_key_padding_mask=None):
-        # Extract attention scores
-        src2, self.attention_scores = self.self_attn(
-            src, src, src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask
+        assert d_model % nhead == 0, "d_model must be divisible by nhead"
+
+        self.query = nn.Linear(d_model, d_model)
+        self.key = nn.Linear(d_model, d_model)
+        self.value = nn.Linear(d_model, d_model)
+        self.out = nn.Linear(d_model, d_model)
+
+    def forward(self, x):
+        batch_size, seq_len, d_model = x.size()
+
+        # Linear projections
+        Q = self.query(x)  # (batch_size, seq_len, d_model)
+        K = self.key(x)    # (batch_size, seq_len, d_model)
+        V = self.value(x)  # (batch_size, seq_len, d_model)
+
+        # Reshape for multihead attention
+        Q = Q.view(batch_size, seq_len, self.nhead, self.head_dim).transpose(1, 2)  # (batch_size, nhead, seq_len, head_dim)
+        K = K.view(batch_size, seq_len, self.nhead, self.head_dim).transpose(1, 2)  # (batch_size, nhead, seq_len, head_dim)
+        V = V.view(batch_size, seq_len, self.nhead, self.head_dim).transpose(1, 2)  # (batch_size, nhead, seq_len, head_dim)
+
+        # Scaled dot-product attention
+        attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / (self.head_dim ** 0.5)  # (batch_size, nhead, seq_len, seq_len)
+        attn_weights = F.softmax(attn_scores, dim=-1)  # (batch_size, nhead, seq_len, seq_len)
+
+        # Weighted sum of values
+        attn_output = torch.matmul(attn_weights, V)  # (batch_size, nhead, seq_len, head_dim)
+
+        # Combine heads
+        attn_output = attn_output.transpose(1, 2).contiguous().view(batch_size, seq_len, d_model)  # (batch_size, seq_len, d_model)
+
+        # Final linear projection
+        output = self.out(attn_output)  # (batch_size, seq_len, d_model)
+
+        return output, attn_weights  # Return attention weights for analysis
+
+
+# Custom Transformer Encoder Layer
+class CustomTransformerEncoderLayer(nn.Module):
+    def __init__(self, d_model, nhead, dim_feedforward, dropout=0.1):
+        super(CustomTransformerEncoderLayer, self).__init__()
+        self.self_attention = CustomMultiheadAttention(d_model, nhead)
+        self.dropout1 = nn.Dropout(dropout)
+        self.norm1 = nn.LayerNorm(d_model)
+
+        self.feedforward = nn.Sequential(
+            nn.Linear(d_model, dim_feedforward),
+            nn.ReLU(),
+            nn.Linear(dim_feedforward, d_model),
         )
-        src = src + self.dropout1(src2)
-        src = self.norm1(src)
+        self.dropout2 = nn.Dropout(dropout)
+        self.norm2 = nn.LayerNorm(d_model)
 
-        src2 = self.linear2(self.dropout(self.activation(self.linear1(src))))
-        src = src + self.dropout2(src2)
-        src = self.norm2(src)
+    def forward(self, src):
+        # Self-attention
+        attn_output, attn_weights = self.self_attention(src)
+        src = self.norm1(src + self.dropout1(attn_output))
 
-        return src
+        # Feedforward
+        feedforward_output = self.feedforward(src)
+        src = self.norm2(src + self.dropout2(feedforward_output))
+
+        return src, attn_weights  # Return attention weights
 
 
-# Transformer Model with Custom Attention Extraction
-class FullMultiLevelTransformerWithAttention(nn.Module):
+# Custom Transformer Encoder
+class CustomTransformerEncoder(nn.Module):
+    def __init__(self, num_layers, d_model, nhead, dim_feedforward, dropout=0.1):
+        super(CustomTransformerEncoder, self).__init__()
+        self.layers = nn.ModuleList([
+            CustomTransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout)
+            for _ in range(num_layers)
+        ])
+
+    def forward(self, src):
+        attention_scores = []  # Store attention scores from each layer
+        for layer in self.layers:
+            src, attn_weights = layer(src)
+            attention_scores.append(attn_weights)
+        return src, attention_scores  # Return attention scores from all layers
+
+
+# 전체 모델 정의
+class FullMultiLevelTransformer(nn.Module):
     def __init__(self, input_dim, eqp_vocab_size, d_model=64, nhead=4, num_layers=2, dim_feedforward=128, dropout=0.1):
-        super(FullMultiLevelTransformerWithAttention, self).__init__()
+        super(FullMultiLevelTransformer, self).__init__()
         self.d_model = d_model
 
         self.eqp_embedding = nn.Embedding(eqp_vocab_size, d_model)
         self.feature_embedding = nn.Linear(input_dim, d_model)
-
-        # Use CustomTransformerEncoderLayer for extracting attention scores
-        encoder_layers = [CustomTransformerEncoderLayer(
-            d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout
-        ) for _ in range(num_layers)]
-        self.feature_transformer = nn.TransformerEncoder(nn.ModuleList(encoder_layers), num_layers=num_layers)
-
+        self.feature_transformer = CustomTransformerEncoder(
+            num_layers=num_layers, d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout
+        )
         self.fc = nn.Linear(d_model, 1)
 
     def forward(self, features, eqp_ids):
-        feature_embed = self.feature_embedding(features)
-        eqp_embed = self.eqp_embedding(eqp_ids)
+        feature_embed = self.feature_embedding(features)  # (batch_size, seq_len, d_model)
+        eqp_embed = self.eqp_embedding(eqp_ids)          # (batch_size, seq_len, d_model)
 
         combined_features = feature_embed + eqp_embed
-        combined_features = rearrange(combined_features, 'b d -> 1 b d')
+        combined_features = combined_features.unsqueeze(1)  # Add sequence dimension (batch_size, 1, d_model)
 
-        transformed_features = self.feature_transformer(combined_features)
+        transformed_features, attention_scores = self.feature_transformer(combined_features)
 
-        # Flatten and reduce dimensions
-        output = transformed_features.mean(dim=0)  # Mean pooling over time
-        return self.fc(output)
+        # Pooling and final output
+        output = transformed_features.mean(dim=1)  # Mean pooling
+        return self.fc(output), attention_scores  # Return predictions and attention scores
+        
+        
+        
+        # Dummy 데이터
+batch_size = 16
+seq_len = 1
+input_dim = 32
+eqp_vocab_size = 100
+d_model = 64
+nhead = 4
+num_layers = 2
+dim_feedforward = 128
 
-    def get_attention_scores(self):
-        # Extract attention scores from each layer
-        scores = [layer.attention_scores for layer in self.feature_transformer.layers]
-        return scores
+features = torch.randn(batch_size, input_dim)  # (batch_size, input_dim)
+eqp_ids = torch.randint(0, eqp_vocab_size, (batch_size,))  # (batch_size,)
 
+# 모델 초기화 및 실행
+model = FullMultiLevelTransformer(input_dim, eqp_vocab_size, d_model, nhead, num_layers, dim_feedforward)
+predictions, attention_scores = model(features, eqp_ids)
 
-# 모델 초기화
-eqp_vocab_size = 100  # Example vocab size
-input_dim = 32  # Example input dimension
-model = FullMultiLevelTransformerWithAttention(
-    input_dim=input_dim, eqp_vocab_size=eqp_vocab_size, d_model=256, nhead=4, num_layers=4, dim_feedforward=512
-)
-
-# Dummy Input for Testing
-features = torch.randn(16, 32)  # Batch of 16, 32 features
-eqp_ids = torch.randint(0, eqp_vocab_size, (16,))  # Batch of 16 equipment IDs
-
-# Forward Pass
-output = model(features, eqp_ids)
-
-# Attention Scores Extraction
-attention_scores = model.get_attention_scores()
-print("Attention Scores for Each Layer:", attention_scores)
+# 어텐션 점수 출력
+print("Attention Scores:", attention_scores)
+        
