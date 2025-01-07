@@ -75,51 +75,33 @@ class CustomTransformerEncoderLayer(nn.Module):
         return src, attn_weights  # Return attention weights
 
 
-# Custom Transformer Encoder
-class CustomTransformerEncoder(nn.Module):
-    def __init__(self, num_layers, d_model, nhead, dim_feedforward, dropout=0.1):
-        super(CustomTransformerEncoder, self).__init__()
-        self.layers = nn.ModuleList([
-            CustomTransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout)
-            for _ in range(num_layers)
-        ])
-
-    def forward(self, src):
-        attention_scores = []  # Store attention scores from each layer
-        for layer in self.layers:
-            src, attn_weights = layer(src)
-            attention_scores.append(attn_weights)
-        return src, attention_scores  # Return attention scores from all layers
-
-
 # Full Transformer Model
 class FullMultiLevelTransformer(nn.Module):
-    def __init__(self, input_dim, eqp_vocab_size, d_model=64, nhead=4, num_layers=2, dim_feedforward=128, dropout=0.1):
+    def __init__(self, input_dim, d_model=64, nhead=4, num_layers=2, dim_feedforward=128, dropout=0.1):
         super(FullMultiLevelTransformer, self).__init__()
         self.d_model = d_model
 
-        self.eqp_embedding = nn.Embedding(eqp_vocab_size, d_model)
         self.feature_embedding = nn.Linear(input_dim, d_model)
-        self.feature_transformer = CustomTransformerEncoder(
-            num_layers=num_layers, d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout
-        )
+        self.feature_transformer = nn.ModuleList([
+            CustomTransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout)
+            for _ in range(num_layers)
+        ])
         self.fc = nn.Linear(d_model, 1)
 
-    def forward(self, features, eqp_ids):
+    def forward(self, features):
         feature_embed = self.feature_embedding(features)  # (batch_size, seq_len, d_model)
-        eqp_embed = self.eqp_embedding(eqp_ids)          # (batch_size, seq_len, d_model)
+        attention_scores = []
 
-        combined_features = feature_embed + eqp_embed
-        combined_features = combined_features.unsqueeze(1)  # Add sequence dimension (batch_size, 1, d_model)
-
-        transformed_features, attention_scores = self.feature_transformer(combined_features)
+        for layer in self.feature_transformer:
+            feature_embed, attn_weights = layer(feature_embed)
+            attention_scores.append(attn_weights)
 
         # Pooling and final output
-        output = transformed_features.mean(dim=1)  # Mean pooling
+        output = feature_embed.mean(dim=1)  # Mean pooling
         return self.fc(output), attention_scores  # Return predictions and attention scores
 
 
-# Compute Variable Importance
+# 중요도 계산 함수
 def compute_variable_importance(attention_scores):
     """
     Calculate importance scores for each variable from attention scores.
@@ -130,41 +112,34 @@ def compute_variable_importance(attention_scores):
     Returns:
         importance_scores: Tensor of shape (seq_len,)
     """
-    # 1. 헤드별 평균 계산 (nhead 차원 평균)
+    # 어텐션 점수 평균
     head_mean_scores = attention_scores.mean(dim=1)  # (batch_size, seq_len, seq_len)
-
-    # 2. 배치별 평균 계산 (batch 차원 평균)
     batch_mean_scores = head_mean_scores.mean(dim=0)  # (seq_len, seq_len)
-
-    # 3. Query 기준 평균 (query 차원 평균)
     variable_importance = batch_mean_scores.mean(dim=0)  # (seq_len,)
-
     return variable_importance
 
 
-# Main Execution
+# 실행 코드
 if __name__ == "__main__":
-    # Dummy 데이터
     batch_size = 16
     input_dim = 32
-    eqp_vocab_size = 100
     d_model = 64
     nhead = 4
     num_layers = 2
     dim_feedforward = 128
 
+    # 더미 데이터 생성
     features = torch.randn(batch_size, input_dim)  # (batch_size, input_dim)
-    eqp_ids = torch.randint(0, eqp_vocab_size, (batch_size,))  # (batch_size,)
 
     # 모델 초기화 및 실행
-    model = FullMultiLevelTransformer(input_dim, eqp_vocab_size, d_model, nhead, num_layers, dim_feedforward)
-    predictions, attention_scores = model(features, eqp_ids)
+    model = FullMultiLevelTransformer(input_dim, d_model, nhead, num_layers, dim_feedforward)
+    predictions, attention_scores = model(features)
 
     # 마지막 레이어의 Attention Scores 사용
     final_layer_attention_scores = attention_scores[-1]  # 마지막 레이어
     variable_importance = compute_variable_importance(final_layer_attention_scores)
 
-    # 변수 이름과 함께 출력
+    # 변수 중요도 출력
     feature_names = [f"Variable {i+1}" for i in range(input_dim)]
     importance_dict = {name: importance.item() for name, importance in zip(feature_names, variable_importance)}
 
