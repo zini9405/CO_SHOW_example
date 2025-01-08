@@ -1,59 +1,70 @@
-import pandas as pd
-from sklearn.manifold import TSNE
-import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler
+import pandas as pd
+import altair as alt
+import streamlit as st
+import matplotlib.pyplot as plt
+import datetime
+from glob import glob
+from src.process import to_dict, get_golden_tool, to_dict_
+from src.graph import plot_cluster, plot_pie_chart, get_color, plot_shape
+#from src.graph import *
+from src.misc import mode, get_fname
+import os
 
-def visualize_and_save_eqp_embedding(model, eqp_mapping, csv_file):
-    """
-    EQP_ID_MODULE_NAME 임베딩 시각화 및 결과 저장
-    """
-    # 1. EQP_ID_MODULE_NAME의 임베딩 벡터를 추출
-    embedding_weights = model.eqp_embedding.weight.detach().cpu().numpy()
+if 'df_Y' not in st.session_state:
+    df_Y = pd.read_csv('./asset/wire_saw_summary/sfqr/all_minmax_with_predictions_and_importance.csv', low_memory=False)
+    df_Y['HST_REG_DTTM'] = df_Y['HST_REG_DTTM'].map(lambda x: datetime.datetime.strptime(str(x), '%Y-%m-%d %H:%M:%S').date())
+    st.session_state['df_Y'] = df_Y
+    
+if 'df_cluster' not in st.session_state:
+    st.session_state['df_cluster'] = pd.read_csv('./asset/wire_saw_summary/sfqr/embedding_results.csv')
 
-    # 2. t-SNE를 사용하여 2D로 차원 축소
-    tsne = TSNE(n_components=2, random_state=42)
-    reduced_embeddings = tsne.fit_transform(embedding_weights)
+if 'list_recipe' not in st.session_state:
+    st.session_state['list_recipe'] = st.session_state['df_Y'].RECIPE_ID.unique().tolist()
 
-    # 3. X, Y 값을 0과 1 사이로 변환
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    scaled_embeddings = scaler.fit_transform(reduced_embeddings)
+if 'dict_cluster' not in st.session_state:
+    st.session_state['dict_cluster'] = to_dict_(st.session_state['df_cluster'])
 
-    # 4. EQP_ID_MODULE_NAME 레이블 가져오기
-    eqp_labels = list(eqp_mapping.keys())
+st.set_page_config(
+    page_title = 'WIRE SAW - WARP',
+    page_icon = '📊',
+    initial_sidebar_state = 'collapsed',
+    layout = 'wide'
+)
 
-    # 5. 결과를 데이터프레임으로 저장
-    embedding_df = pd.DataFrame({
-        "EQP_NM": eqp_labels,
-        "X": scaled_embeddings[:, 0],
-        "Y": scaled_embeddings[:, 1]
-    })
 
-    # 6. all.csv 파일 읽기
-    all_df = pd.read_csv(csv_file)
+start_date = st.sidebar.date_input('Start date', datetime.date.today() - datetime.timedelta(days=60))
+end_date = st.sidebar.date_input('End date', datetime.date.today())
+print(st.session_state['df_Y'])
 
-    # 7. 각 EQP_NM의 ZDDFRONTMEAN_01_AFS2 평균값 계산 후 ZDD 열 추가
-    zdd_values = all_df.groupby("EQP_ID_MODULE_NAME")["ZDDFRONTMEAN_01_AFS2"].mean().rename("ZDD")
-    embedding_df = embedding_df.merge(zdd_values, left_on="EQP_NM", right_index=True, how="left")
+list_lot_id = st.session_state['df_Y'][(st.session_state['df_Y'].HST_REG_DTTM.between(start_date, end_date, inclusive='both'))].WAF_ID.tolist()
 
-    # 8. 결과를 저장
-    output_csv = "embedding_results.csv"
-    embedding_df.to_csv(output_csv, index=False)
-    print(f"Embedding results saved to '{output_csv}'.")
 
-    # 9. 시각화
-    plt.figure(figsize=(12, 8))
-    for i, row in embedding_df.iterrows():
-        plt.scatter(row["X"], row["Y"], label=row["EQP_NM"])
-        plt.text(row["X"], row["Y"], row["EQP_NM"], fontsize=9)
+st.markdown('## EPI SFQR')
 
-    plt.title("EQP_ID_MODULE_NAME Embedding Visualization")
-    plt.xlabel("Dimension 1 (scaled)")
-    plt.ylabel("Dimension 2 (scaled)")
-    plt.grid(True)
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-    plt.show()
+# 1. warp trend
+st.markdown('---')
+st.markdown('### 1. SFQR 품질 현황')
 
-# 사용 예시
-csv_file = "all.csv"  # all.csv 파일 경로
-visualize_and_save_eqp_embedding(model, eqp_mapping, csv_file)
+
+
+df_warp = st.session_state['df_Y'][st.session_state['df_Y'].WAF_ID.isin(list_lot_id)].groupby('EQP_ID_MODULE_NAME').ZDDFRONTMEAN_01_AFS2.mean().reset_index().sort_values('ZDDFRONTMEAN_01_AFS2')
+print(df_warp)
+
+chart = alt.Chart(df_warp).mark_bar(color = '#E1002A').encode(
+    x = alt.X('EQP_NM', title = None, sort = '-y'),
+    y = alt.Y('WARP_BF', title = 'WARP (um)', scale = alt.Scale(domain = [6, 16], clamp = True))
+)
+
+st.altair_chart(chart, use_container_width = True)
+
+###############################################################
+
+eqps = df_warp.sort_values('EQP_ID_MODULE_NAME')
+warps = eqps['ZDDFRONTMEAN_01_AFS2'].values
+idx_init = int(np.argmax(warps))
+
+###############################################################
+
+
+ValueError: Unable to determine data type for the field "EQP_NM"; verify that the field name is not misspelled. If you are referencing a field from a transform, also confirm that the data type is specified correctly.
