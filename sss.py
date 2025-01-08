@@ -1,70 +1,45 @@
-import numpy as np
-import pandas as pd
-import altair as alt
-import streamlit as st
-import matplotlib.pyplot as plt
-import datetime
-from glob import glob
-from src.process import to_dict, get_golden_tool, to_dict_
-from src.graph import plot_cluster, plot_pie_chart, get_color, plot_shape
-#from src.graph import *
-from src.misc import mode, get_fname
-import os
-
-if 'df_Y' not in st.session_state:
-    df_Y = pd.read_csv('./asset/wire_saw_summary/sfqr/all_minmax_with_predictions_and_importance.csv', low_memory=False)
-    df_Y['HST_REG_DTTM'] = df_Y['HST_REG_DTTM'].map(lambda x: datetime.datetime.strptime(str(x), '%Y-%m-%d %H:%M:%S').date())
-    st.session_state['df_Y'] = df_Y
-    
-if 'df_cluster' not in st.session_state:
-    st.session_state['df_cluster'] = pd.read_csv('./asset/wire_saw_summary/sfqr/embedding_results.csv')
-
-if 'list_recipe' not in st.session_state:
-    st.session_state['list_recipe'] = st.session_state['df_Y'].RECIPE_ID.unique().tolist()
-
-if 'dict_cluster' not in st.session_state:
-    st.session_state['dict_cluster'] = to_dict_(st.session_state['df_cluster'])
-
-st.set_page_config(
-    page_title = 'WIRE SAW - WARP',
-    page_icon = '📊',
-    initial_sidebar_state = 'collapsed',
-    layout = 'wide'
-)
+df_Y = pd.read_csv('./asset/wire_saw_summary/sfqr/all_minmax_with_predictions_and_importance.csv', low_memory=False)
 
 
-start_date = st.sidebar.date_input('Start date', datetime.date.today() - datetime.timedelta(days=60))
-end_date = st.sidebar.date_input('End date', datetime.date.today())
-print(st.session_state['df_Y'])
+1. df_Y 데이터에 EQP_ID_MODULE_NAME열에 eqp_1로 그룹화
+2. d 열만 추출하고 각 열 평균하기.
+ d = ['SLOT_NO_importance','RECIPE_ID_importance',
+ 'AVG_ROTATION_SPEED_AT_CH_MOTIONCTRL_ROTATION_RVEL_STEP_MEAN_importance',
+ 'BLOWER_AIR_BOTTOM_PRESSURE_BOTTOM_AT_CHA_STEP_MEAN_importance',
+ 'BLOWER_AIR_PRESSURE_AT_CHA_STEP_MEAN_importance',
+ 'CURRENT_FLOW_AT_CH_GASPANEL_STICK01_MFC_RFLOW_STEP_MEAN_importance',
+ 'CURRENT_FLOW_AT_CH_GASPANEL_STICK02_MFC_RFLOW_STEP_MEAN_importance',
+ 'CURRENT_FLOW_AT_CH_GASPANEL_STICK03_MFC_RFLOW_STEP_MEAN_importance',
+ 'CURRENT_FLOW_AT_CH_GASPANEL_STICK04_MFC_RFLOW_STEP_MEAN_importance',
+ 'CURRENT_FLOW_AT_CH_GASPANEL_STICK05_MFC_RFLOW_STEP_MEAN_importance',
+ 'CURRENT_FLOW_AT_CH_GASPANEL_STICK06_MFC_RFLOW_STEP_MEAN_importance',
+ 'LIFT_TORQUE_AT_CHA_MOTIONCTRL_LIFT_RTORQUE_STEP_MEAN_importance',
+ 'PRESSURE_AT_BUFFER_VACSYS_PRESSGAUGE_RPRESSURE_STEP_MEAN_importance',
+ 'PRESSURE_AT_CH_MAN1000T_RPRESSURE_STEP_MEAN_importance',
+ 'SCR_POWER_AT_CH_TEMPCTRL_HEATER_TOP_INNER_RPOWER_STEP_MEAN_importance',
+ 'SCR_POWER_AT_CH_TEMPCTRL_HEATER_TOP_OUTER_RPOWER_STEP_MEAN_importance',
+ 'SCR_POWER_AT_CH_TEMPCTRL_HEATER_BOTTOM_INNER_RPOWER_STEP_MEAN_importance',
+ 'SCR_POWER_AT_CH_TEMPCTRL_HEATER_BOTTOM_OUTER_RPOWER_STEP_MEAN_importance',
+ 'TEMPERATURE_READING_AT_CH_TEMPCTRL_HEATER_BOTTOM_PYROMETER_RTEMP_STEP_MEAN_importance',
+ 'TEMPERATURE_READING_AT_CH_TEMPCTRL_HEATER_EDGE_PYROMETER_RTEMP_STEP_MEAN_importance',
+ 'TEMPERATURE_READING_AT_CH_TEMPCTRL_HEATER_TOP_PYROMETER_RTEMP_STEP_MEAN_importance',
+ 'VP_ACCUSET_IN_STEP_MEAN_importance',
+ 'VP_ACCUSET_OUT_STEP_MEAN_importance',
+ 'VP_MULTIRUN_ORDER_STEP_MEAN_importance',
+ 'VP_RCP_CNT_STEP_MAX_importance',
+ 'VP_SUSCEPTORHEIGHT_STEP_MAX_importance',
+ 'VP_RCP_CNT2_STEP_MAX_importance',
+ 'CH_SAVED_TRAINED_EXTENDED_EXTENSION_B1_STEP_MEAN_importance',
+ 'CH_SAVED_TRAINED_EXTENDED_ROTATION_B1_STEP_MEAN_importance',
+ 'ACTUAL_SPEED_AT_CH_TEMPCTRL_HEATER_BOTTOM_VSB_RSPEED_STEP_MEAN_importance',
+ 'ACTUAL_SPEED_AT_CH_TEMPCTRL_HEATER_TOP_VSB_RSPEED_STEP_MEAN_importance',
+ 'ZDDFRONTMEAN_01_AFS2_SUB_importance']
 
-list_lot_id = st.session_state['df_Y'][(st.session_state['df_Y'].HST_REG_DTTM.between(start_date, end_date, inclusive='both'))].WAF_ID.tolist()
+3. 평균한 열 값 큰 수로 정렬하고 아래에 맞게 수정
 
-
-st.markdown('## EPI SFQR')
-
-# 1. warp trend
-st.markdown('---')
-st.markdown('### 1. SFQR 품질 현황')
-
-
-
-df_warp = st.session_state['df_Y'][st.session_state['df_Y'].WAF_ID.isin(list_lot_id)].groupby('EQP_ID_MODULE_NAME').ZDDFRONTMEAN_01_AFS2.mean().reset_index().sort_values('ZDDFRONTMEAN_01_AFS2')
-print(df_warp)
-
-chart = alt.Chart(df_warp).mark_bar(color = '#E1002A').encode(
-    x = alt.X('EQP_NM', title = None, sort = '-y'),
-    y = alt.Y('WARP_BF', title = 'WARP (um)', scale = alt.Scale(domain = [6, 16], clamp = True))
+chart = alt.Chart(df_fdc.iloc[:10]).mark_bar(color = '#E1002A').encode(
+    x = alt.X('SCORE', title = 'IMPORTANCE (%)'),
+    y = alt.Y('col', title = None, sort = '-x', axis = alt.Axis(labelLimit = 200))
 )
 
 st.altair_chart(chart, use_container_width = True)
-
-###############################################################
-
-eqps = df_warp.sort_values('EQP_ID_MODULE_NAME')
-warps = eqps['ZDDFRONTMEAN_01_AFS2'].values
-idx_init = int(np.argmax(warps))
-
-###############################################################
-
-
-ValueError: Unable to determine data type for the field "EQP_NM"; verify that the field name is not misspelled. If you are referencing a field from a transform, also confirm that the data type is specified correctly.
