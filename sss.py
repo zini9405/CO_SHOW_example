@@ -1,11 +1,15 @@
-SyntaxError: Unexpected token 'N', ..."domain": [NaN, NaN]}"... is not valid JSON
-at JSON.parse (<anonymous>)
-at E.generateSpec (http://localhost:20001/static/js/8460.570de48a.chunk.js:1:7100)
-at E.createView (http://localhost:20001/static/js/8460.570de48a.chunk.js:1:11660)
-at E.componentDidMount (http://localhost:20001/static/js/8460.570de48a.chunk.js:1:9945)
-at yl (http://localhost:20001/static/js/main.dbbac55a.js:10:2321028)
-at zl (http://localhost:20001/static/js/main.dbbac55a.js:10:2320801)
-at gl (http://localhost:20001/static/js/main.dbbac55a.js:10:2320337)
-at http://localhost:20001/static/js/main.dbbac55a.js:10:2332174
-at Ac (http://localhost:20001/static/js/main.dbbac55a.js:10:2332689)
-at cc (http://localhost:20001/static/js/main.dbbac55a.js:10:2326408)
+# 1. warp trend
+st.markdown('---')
+st.markdown('### 1. SFQR 품질 현황')
+
+df_warp = st.session_state['df_Y'][st.session_state['df_Y'].WAF_ID.isin(list_lot_id)].groupby('EQP_ID_MODULE_NAME').ZDDFRONTMEAN_01_AFS2.mean().reset_index().sort_values('ZDDFRONTMEAN_01_AFS2')
+
+y_min = df_warp['ZDDFRONTMEAN_01_AFS2'].min()
+y_max = df_warp['ZDDFRONTMEAN_01_AFS2'].max()
+
+chart = alt.Chart(df_warp).mark_bar(color = '#E1002A').encode(
+    x = alt.X('EQP_ID_MODULE_NAME', title = None, sort = '-y'),
+    y = alt.Y('ZDDFRONTMEAN_01_AFS2', title = 'ZDD', scale = alt.Scale(domain = [y_min, y_max], clamp = False))
+)
+
+st.altair_chart(chart, use_container_width = True)
