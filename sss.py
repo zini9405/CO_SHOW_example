@@ -1,26 +1,22 @@
-import numpy as np
+sub_df_eqp2 = 
 
-# y_min과 y_max 계산
-y_min = df_warp['ZDDFRONTMEAN_01_AFS2'].min()
-y_max = df_warp['ZDDFRONTMEAN_01_AFS2'].max()
+      HST_REG_DTTM        WAF_ID  ZDDFRONTMEAN_01_AFS2  MEAN_ZDDFRONTMEAN_01_AFS2
+15332   2024-09-30  A15QAG76SLD6            -10.291836                 -11.285315
+15333   2024-09-30  A15QAG77SLA5            -14.822325                 -11.285315
+15334   2024-09-30  A15QAG78SLE7            -13.132669                 -11.285315
+15335   2024-09-30  A15QAG79SLB6            -12.702065                 -11.285315
+15336   2024-09-30  A15W9C60SLH0            -11.206344                 -11.285315
+...            ...           ...                   ...                        ...
+17352   2024-10-16    B20064HUSL            -22.972179                 -31.727432
+17347   2024-10-16    B20063LCSL            -35.285668                 -31.727432
+17346   2024-10-16    B20063LBSL            -32.524327                 -31.727432
+17348   2024-10-16    B20063LDSL            -35.448495                 -31.727432
+17353   2024-10-16    B20064HVSL            -22.027977                 -31.727432
 
-# NaN, inf 체크 후 기본값 설정
-if np.isnan(y_min) or np.isnan(y_max) or np.isinf(y_min) or np.isinf(y_max):
-    print("⚠️ Warning: y_min or y_max is NaN/Inf. Assigning default values.")
-    y_min, y_max = 0, 1  # 기본값 설정
 
-# 데이터 출력 (디버깅)
-print(f"✅ y_min: {y_min}, y_max: {y_max}")
+HST_REG_DTTM로 그룹화하고 waf_ID 갯수를 x 축
+ZDDFRONTMEAN_01_AFS2값을 y축으로 점 형식으로 그래프를 그려줘.
 
-chart = alt.Chart(df_warp).mark_bar(color='#E1002A').encode(
-    x=alt.X('EQP_ID_MODULE_NAME', title=None, sort='-y'),
-    y=alt.Y('ZDDFRONTMEAN_01_AFS2', title='ZDD', scale=alt.Scale(domain=[y_min, y_max], clamp=False))
-)
+HST_REG_DTTM가 다르면 색깔 다르게 설정
 
-# JSON 변환 후 검사
-json_data = chart.to_json()
-print("Generated JSON Data:")
-print(json_data)  # JSON이 정상적으로 생성되는지 확인
-
-# Streamlit 차트 출력
-st.altair_chart(chart, use_container_width=True)
+streamlit으로 구현해줘.
