@@ -1,97 +1,44 @@
-import streamlit as st
-import pandas as pd
-import altair as alt
-import numpy as np
-import datetime
+x 값
 
-# Streamlit 페이지 설정
-st.set_page_config(
-    page_title="ZDDFRONTMEAN Analysis",
-    page_icon="📊",
-    layout="wide"
-)
+['SLOT_NO',
+ 'RECIPE_ID',
+ 'AVG_ROTATION_SPEED_AT_CH_MOTIONCTRL_ROTATION_RVEL_STEP_MEAN',
+ 'BLOWER_AIR_BOTTOM_PRESSURE_BOTTOM_AT_CHA_STEP_MEAN',
+ 'BLOWER_AIR_PRESSURE_AT_CHA_STEP_MEAN',
+ 'CURRENT_FLOW_AT_CH_GASPANEL_STICK01_MFC_RFLOW_STEP_MEAN',
+ 'CURRENT_FLOW_AT_CH_GASPANEL_STICK02_MFC_RFLOW_STEP_MEAN',
+ 'CURRENT_FLOW_AT_CH_GASPANEL_STICK03_MFC_RFLOW_STEP_MEAN',
+ 'CURRENT_FLOW_AT_CH_GASPANEL_STICK04_MFC_RFLOW_STEP_MEAN',
+ 'CURRENT_FLOW_AT_CH_GASPANEL_STICK05_MFC_RFLOW_STEP_MEAN',
+ 'CURRENT_FLOW_AT_CH_GASPANEL_STICK06_MFC_RFLOW_STEP_MEAN',
+ 'LIFT_TORQUE_AT_CHA_MOTIONCTRL_LIFT_RTORQUE_STEP_MEAN',
+ 'PRESSURE_AT_BUFFER_VACSYS_PRESSGAUGE_RPRESSURE_STEP_MEAN',
+ 'PRESSURE_AT_CH_MAN1000T_RPRESSURE_STEP_MEAN',
+ 'SCR_POWER_AT_CH_TEMPCTRL_HEATER_TOP_INNER_RPOWER_STEP_MEAN',
+ 'SCR_POWER_AT_CH_TEMPCTRL_HEATER_TOP_OUTER_RPOWER_STEP_MEAN',
+ 'SCR_POWER_AT_CH_TEMPCTRL_HEATER_BOTTOM_INNER_RPOWER_STEP_MEAN',
+ 'SCR_POWER_AT_CH_TEMPCTRL_HEATER_BOTTOM_OUTER_RPOWER_STEP_MEAN',
+ 'TEMPERATURE_READING_AT_CH_TEMPCTRL_HEATER_BOTTOM_PYROMETER_RTEMP_STEP_MEAN',
+ 'TEMPERATURE_READING_AT_CH_TEMPCTRL_HEATER_EDGE_PYROMETER_RTEMP_STEP_MEAN',
+ 'TEMPERATURE_READING_AT_CH_TEMPCTRL_HEATER_TOP_PYROMETER_RTEMP_STEP_MEAN',
+ 'VP_ACCUSET_IN_STEP_MEAN',
+ 'VP_ACCUSET_OUT_STEP_MEAN',
+ 'VP_MULTIRUN_ORDER_STEP_MEAN',
+ 'VP_RCP_CNT_STEP_MAX',
+ 'VP_SUSCEPTORHEIGHT_STEP_MAX',
+ 'VP_RCP_CNT2_STEP_MAX',
+ 'CH_SAVED_TRAINED_EXTENDED_EXTENSION_B1_STEP_MEAN',
+ 'CH_SAVED_TRAINED_EXTENDED_ROTATION_B1_STEP_MEAN',
+ 'ACTUAL_SPEED_AT_CH_TEMPCTRL_HEATER_BOTTOM_VSB_RSPEED_STEP_MEAN',
+ 'ACTUAL_SPEED_AT_CH_TEMPCTRL_HEATER_TOP_VSB_RSPEED_STEP_MEAN',
+ 'HST_REG_DTTM',
+ 'ZDDFRONTMEAN_01_AFS2',
+ 'ZDDFRONTMEAN_01_AFS2_SUB',
+ 'EQP_ID_MODULE_NAME']
 
-# Streamlit UI 제목
-st.title("📊 ZDDFRONTMEAN_01_AFS2 Analysis")
-st.markdown("### EQP 별 ZDDFRONTMEAN 트렌드")
-
-# 날짜 선택
-start_date = st.sidebar.date_input("Start date", datetime.date.today() - datetime.timedelta(days=60))
-end_date = st.sidebar.date_input("End date", datetime.date.today())
-
-# 데이터 가져오기 (예제 데이터)
 df_eqp = st.session_state['df_Y'][(st.session_state['df_Y'].HST_REG_DTTM.between(start_date, end_date, inclusive='both'))]
 
-# 비교할 EQP_ID 선택
-eqp_1 = st.sidebar.selectbox("Select EQP_1", df_eqp['EQP_ID_MODULE_NAME'].unique())
-eqp_2 = st.sidebar.selectbox("Select EQP_2", df_eqp['EQP_ID_MODULE_NAME'].unique())
+df_eqp1 = df_eqp.loc[df_eqp.EQP_ID_MODULE_NAME == eqp_1] and eqp_2
+df_eqp1 = df_eqp1[(df_eqp1.HST_REG_DTTM.between(start_date, end_date, inclusive='both'))].sort_values('HST_REG_DTTM')
 
-# 4개 Column 레이아웃 생성
-col1, col2, col3, col4 = st.columns(4)
-
-# ✅ **첫 번째 그래프 (EQP_1 Mean ZDD Bar Chart)**
-with col1:
-    df_eqp1 = df_eqp[df_eqp.EQP_ID_MODULE_NAME == eqp_1].sort_values('HST_REG_DTTM')
-    df_eqp_grp1 = df_eqp1.groupby(['HST_REG_DTTM', 'WAF_ID']).agg({'ZDDFRONTMEAN_01_AFS2':'mean'}).reset_index()
-    df_eqp_grp1['MEAN_ZDDFRONTMEAN_01_AFS2'] = df_eqp_grp1.groupby('HST_REG_DTTM')['ZDDFRONTMEAN_01_AFS2'].transform('mean')
-
-    # Bar Chart 생성
-    chart1 = alt.Chart(df_eqp_grp1).mark_bar().encode(
-        x=alt.X('HST_REG_DTTM:T', axis=alt.Axis(format='%Y-%m-%d', labelAngle=90), title=None),
-        y=alt.Y('MEAN_ZDDFRONTMEAN_01_AFS2:Q', title='ZDD Mean'),
-        tooltip=['HST_REG_DTTM', 'MEAN_ZDDFRONTMEAN_01_AFS2']
-    ).properties(title=f'EQP: {eqp_1}')
-    
-    st.altair_chart(chart1, use_container_width=True)
-
-# ✅ **두 번째 그래프 (EQP_2 Mean ZDD Bar Chart)**
-with col2:
-    df_eqp2 = df_eqp[df_eqp.EQP_ID_MODULE_NAME == eqp_2].sort_values('HST_REG_DTTM')
-    df_eqp_grp2 = df_eqp2.groupby(['HST_REG_DTTM', 'WAF_ID']).agg({'ZDDFRONTMEAN_01_AFS2':'mean'}).reset_index()
-    df_eqp_grp2['MEAN_ZDDFRONTMEAN_01_AFS2'] = df_eqp_grp2.groupby('HST_REG_DTTM')['ZDDFRONTMEAN_01_AFS2'].transform('mean')
-
-    # Bar Chart 생성
-    chart2 = alt.Chart(df_eqp_grp2).mark_bar().encode(
-        x=alt.X('HST_REG_DTTM:T', axis=alt.Axis(format='%Y-%m-%d', labelAngle=90), title=None),
-        y=alt.Y('MEAN_ZDDFRONTMEAN_01_AFS2:Q', title='ZDD Mean'),
-        tooltip=['HST_REG_DTTM', 'MEAN_ZDDFRONTMEAN_01_AFS2']
-    ).properties(title=f'EQP: {eqp_2}')
-    
-    st.altair_chart(chart2, use_container_width=True)
-
-# ✅ **세 번째 그래프 (EQP_1 점 그래프 - WAF_ID 기준)**
-with col3:
-    df_eqp_grp1['HST_REG_DTTM'] = pd.to_datetime(df_eqp_grp1['HST_REG_DTTM']).dt.strftime('%Y-%m-%d')
-    df_eqp_grp1 = df_eqp_grp1.sort_values(['HST_REG_DTTM', 'WAF_ID']).reset_index(drop=True)
-    df_eqp_grp1['x_index'] = df_eqp_grp1.groupby('HST_REG_DTTM').cumcount()
-
-    # Scatter Plot (점 그래프)
-    chart3 = alt.Chart(df_eqp_grp1).mark_circle(size=80).encode(
-        x=alt.X('x_index:Q', title="WAF_ID Number"),
-        y=alt.Y('ZDDFRONTMEAN_01_AFS2:Q', title="ZDDFRONTMEAN_01_AFS2"),
-        color=alt.Color('HST_REG_DTTM:N', title="날짜"),
-        tooltip=['HST_REG_DTTM', 'WAF_ID', 'ZDDFRONTMEAN_01_AFS2']
-    ).interactive()
-
-    st.altair_chart(chart3, use_container_width=True)
-
-# ✅ **네 번째 그래프 (EQP_2 점 그래프 - WAF_ID 기준)**
-with col4:
-    df_eqp_grp2['HST_REG_DTTM'] = pd.to_datetime(df_eqp_grp2['HST_REG_DTTM']).dt.strftime('%Y-%m-%d')
-    df_eqp_grp2 = df_eqp_grp2.sort_values(['HST_REG_DTTM', 'WAF_ID']).reset_index(drop=True)
-    df_eqp_grp2['x_index'] = df_eqp_grp2.groupby('HST_REG_DTTM').cumcount()
-
-    # Scatter Plot (점 그래프)
-    chart4 = alt.Chart(df_eqp_grp2).mark_circle(size=80).encode(
-        x=alt.X('x_index:Q', title="WAF_ID Number"),
-        y=alt.Y('ZDDFRONTMEAN_01_AFS2:Q', title="ZDDFRONTMEAN_01_AFS2"),
-        color=alt.Color('HST_REG_DTTM:N', title="날짜"),
-        tooltip=['HST_REG_DTTM', 'WAF_ID', 'ZDDFRONTMEAN_01_AFS2']
-    ).interactive()
-
-    st.altair_chart(chart4, use_container_width=True)
-
-# --- 3. X 중요도 ---
-st.markdown('---')
-st.markdown('### 3. X 인자 중요도')
-st.markdown(f'{eqp_1} - FDC 인자')
+나는 eqp_1/eqp_2 간의 x 값을 비교하고 싶어. x축은 날짜이고 동일한 날짜가 있으면 값의 평균으로 y축은 값으로 하는 그래프 그려줘. 한 그래프 안에 eqp1/eqp2 x값이 있으면 좋겠어.
