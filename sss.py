@@ -35,29 +35,46 @@ selected_date = st.sidebar.selectbox("HST_REG_DTTM 선택", date_list)
 # 선택한 날짜의 데이터 필터링
 df_filtered_date = df_filtered_eqp[df_filtered_eqp['HST_REG_DTTM'] == selected_date]
 
-# WAF_ID 선택 (해당 날짜에서 WAF_ID 목록 가져오기)
-waf_list = df_filtered_date['WAF_ID'].unique()
-selected_waf = st.sidebar.selectbox("WAF_ID 선택", waf_list)
+# ✅ 먼저 해당 날짜의 모든 WAF_ID 데이터를 그래프로 표시
+df_melted_all = df_filtered_date.melt(id_vars=['HST_REG_DTTM', 'WAF_ID'], value_vars=['ZDDFRONTMEAN_01_AFS2', 'pred'],
+                                      var_name='Variable', value_name='Value')
 
-# 최종 데이터 필터링 (선택한 WAF_ID)
+# 📊 WAF_ID별 그래프 (선택하기 전 전체 데이터 표시)
+chart_all = alt.Chart(df_melted_all).mark_circle(size=80).encode(
+    x=alt.X('HST_REG_DTTM:T', title="날짜"),
+    y=alt.Y('Value:Q', title="값"),
+    color=alt.Color('Variable:N', title="변수 종류"),
+    tooltip=['HST_REG_DTTM', 'WAF_ID', 'Variable', 'Value'],
+    opacity=alt.condition(alt.selection_point(), alt.value(1), alt.value(0.3))  # 선택 전에는 투명도 낮춤
+).add_params(
+    alt.selection_point(name="select_waf", fields=['WAF_ID'], bind='legend')
+).properties(title=f'📊 {selected_date} - 전체 WAF_ID 데이터')
+
+# 그래프 출력
+st.altair_chart(chart_all, use_container_width=True)
+
+# ✅ 그래프에서 선택한 WAF_ID 필터링
+selected_waf = st.sidebar.selectbox("WAF_ID 선택", df_filtered_date['WAF_ID'].unique())
+
+# 선택한 WAF_ID 데이터 필터링
 df_final = df_filtered_date[df_filtered_date['WAF_ID'] == selected_waf]
 
-# 데이터 확인 및 그래프 생성
+# 데이터 확인 및 개별 그래프 생성
 if df_final.empty:
     st.warning("선택한 WAF_ID에 대한 데이터가 없습니다.")
 else:
     # ✅ 📌 Altair 시각화를 위한 데이터 변환
     df_melted = df_final.melt(id_vars=['HST_REG_DTTM'], value_vars=['ZDDFRONTMEAN_01_AFS2', 'pred'], var_name='Variable', value_name='Value')
 
-    # ✅ 📊 Altair 차트 (ZDDFRONTMEAN_01_AFS2 vs Pred)
+    # ✅ 📊 선택한 WAF_ID의 상세 그래프
     chart = alt.Chart(df_melted).mark_line(point=True).encode(
         x=alt.X('HST_REG_DTTM:T', title="날짜"),
         y=alt.Y('Value:Q', title="값"),
-        color=alt.Color('Variable:N', title="변수 종류"),  # 데이터 타입을 명확하게 설정
+        color=alt.Color('Variable:N', title="변수 종류"),
         tooltip=['HST_REG_DTTM', 'Variable', 'Value']
     ).properties(title=f'📊 {selected_waf} - ZDDFRONTMEAN_01_AFS2 vs Pred')
 
-    # 그래프 출력
+    # 개별 그래프 출력
     st.altair_chart(chart, use_container_width=True)
 
     # ✅ 📋 선택한 WAF_ID의 데이터 테이블
