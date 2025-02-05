@@ -35,16 +35,16 @@ selected_date = st.sidebar.selectbox("HST_REG_DTTM 선택", date_list)
 # 선택한 날짜의 데이터 필터링
 df_filtered_date = df_filtered_eqp[df_filtered_eqp['HST_REG_DTTM'] == selected_date]
 
-# ✅ 먼저 해당 날짜의 모든 WAF_ID 데이터를 그래프로 표시
-df_melted_all = df_filtered_date.melt(id_vars=['HST_REG_DTTM', 'WAF_ID'], value_vars=['ZDDFRONTMEAN_01_AFS2', 'pred'],
+# ✅ 전체 WAF_ID 데이터를 **수평 정렬된 그래프**로 표시
+df_melted_all = df_filtered_date.melt(id_vars=['WAF_ID'], value_vars=['ZDDFRONTMEAN_01_AFS2', 'pred'],
                                       var_name='Variable', value_name='Value')
 
-# 📊 WAF_ID별 그래프 (전체 데이터 표시)
+# 📊 WAF_ID별 그래프 (X축을 WAF_ID로 설정하여 수평 정렬)
 chart_all = alt.Chart(df_melted_all).mark_circle(size=80).encode(
-    x=alt.X('HST_REG_DTTM:T', title="날짜"),
+    x=alt.X('WAF_ID:N', title="WAF_ID", sort='ascending'),
     y=alt.Y('Value:Q', title="값"),
     color=alt.Color('Variable:N', title="변수 종류"),
-    tooltip=['HST_REG_DTTM', 'WAF_ID', 'Variable', 'Value']
+    tooltip=['WAF_ID', 'Variable', 'Value']
 ).properties(title=f'📊 {selected_date} - 전체 WAF_ID 데이터')
 
 # 그래프 출력
