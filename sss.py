@@ -42,11 +42,11 @@ selected_waf = st.sidebar.selectbox("WAF_ID 선택", waf_list)
 # 최종 데이터 필터링 (선택한 WAF_ID)
 df_final = df_filtered_date[df_filtered_date['WAF_ID'] == selected_waf]
 
-# 데이터 확인
+# 데이터 확인 및 그래프 생성
 if df_final.empty:
     st.warning("선택한 WAF_ID에 대한 데이터가 없습니다.")
 else:
-    # Altair 차트 생성 (ZDDFRONTMEAN_01_AFS2 vs Pred 값 비교)
+    # --- 📊 Altair 차트 (ZDDFRONTMEAN_01_AFS2 vs Pred) ---
     chart = alt.Chart(df_final).transform_fold(
         ['ZDDFRONTMEAN_01_AFS2', 'pred'], 
         as_=['변수', '값']
@@ -57,5 +57,9 @@ else:
         tooltip=['HST_REG_DTTM', '변수', '값']
     ).properties(title=f'📊 {selected_waf} - ZDDFRONTMEAN_01_AFS2 vs Pred')
 
-    # Streamlit에 차트 출력
+    # 그래프 출력
     st.altair_chart(chart, use_container_width=True)
+
+    # --- 📋 선택한 WAF_ID의 데이터 테이블 ---
+    st.markdown(f"### 📋 {selected_waf}의 상세 데이터")
+    st.dataframe(df_final)
