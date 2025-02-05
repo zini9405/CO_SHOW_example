@@ -9,15 +9,18 @@ st.set_page_config(
     layout="wide"
 )
 
-# 데이터 로드 (여기서는 예제 데이터 사용)
-# 실제 데이터 사용 시: sub_df_eqp2 = pd.read_csv("파일경로.csv")
+# 예제 데이터 로드 (실제 데이터 사용 시 파일에서 읽어오기)
 sub_df_eqp2 = pd.DataFrame({
-    "HST_REG_DTTM": ["2024-09-30"] * 5 + ["2024-10-16"] * 5,
+    "HST_REG_DTTM": ["2024-09-30", "2024-09-30", "2024-09-30", "2024-09-30", "2024-09-30",
+                     "2024-10-16", "2024-10-16", "2024-10-16", "2024-10-16", "2024-10-16"],
     "WAF_ID": ["A15QAG76SLD6", "A15QAG77SLA5", "A15QAG78SLE7", "A15QAG79SLB6", "A15W9C60SLH0",
                "B20064HUSL", "B20063LCSL", "B20063LBSL", "B20063LDSL", "B20064HVSL"],
     "ZDDFRONTMEAN_01_AFS2": [-10.29, -14.82, -13.13, -12.70, -11.20,
                               -22.97, -35.28, -32.52, -35.44, -22.02]
 })
+
+# 날짜 형식 변환 (YYYY-MM-DD)
+sub_df_eqp2['HST_REG_DTTM'] = pd.to_datetime(sub_df_eqp2['HST_REG_DTTM']).dt.strftime('%Y-%m-%d')
 
 # HST_REG_DTTM별 WAF_ID 개수 계산
 df_grouped = sub_df_eqp2.groupby('HST_REG_DTTM')['WAF_ID'].count().reset_index()
