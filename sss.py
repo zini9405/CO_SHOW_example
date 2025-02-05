@@ -22,23 +22,20 @@ sub_df_eqp2 = pd.DataFrame({
 # 날짜 형식 변환 (YYYY-MM-DD)
 sub_df_eqp2['HST_REG_DTTM'] = pd.to_datetime(sub_df_eqp2['HST_REG_DTTM']).dt.strftime('%Y-%m-%d')
 
-# HST_REG_DTTM별 WAF_ID 개수 계산
-df_grouped = sub_df_eqp2.groupby('HST_REG_DTTM')['WAF_ID'].count().reset_index()
-df_grouped.rename(columns={'WAF_ID': 'waf_count'}, inplace=True)
-
-# 기존 데이터프레임과 병합하여 x축에 WAF_ID 개수를 추가
-sub_df_eqp2 = sub_df_eqp2.merge(df_grouped, on='HST_REG_DTTM')
+# WAF_ID 개수 순서대로 x축 값 할당 (0부터 시작하는 인덱스)
+sub_df_eqp2 = sub_df_eqp2.sort_values('HST_REG_DTTM').reset_index(drop=True)
+sub_df_eqp2['x_index'] = range(len(sub_df_eqp2))  # 0부터 시작하는 인덱스
 
 # Streamlit UI
 st.title("📊 ZDDFRONTMEAN_01_AFS2 Analysis")
-st.markdown("### HST_REG_DTTM별 WAF_ID 개수와 ZDDFRONTMEAN 트렌드")
+st.markdown("### WAF_ID 개수별 ZDDFRONTMEAN_01_AFS2 값")
 
 # Altair 차트 생성
 chart = alt.Chart(sub_df_eqp2).mark_circle(size=80).encode(
-    x=alt.X('waf_count:Q', title="WAF_ID 개수"),
+    x=alt.X('x_index:Q', title="Index (0부터 시작)"),
     y=alt.Y('ZDDFRONTMEAN_01_AFS2:Q', title="ZDDFRONTMEAN_01_AFS2"),
     color=alt.Color('HST_REG_DTTM:N', title="날짜"),
-    tooltip=['HST_REG_DTTM', 'waf_count', 'ZDDFRONTMEAN_01_AFS2']
+    tooltip=['HST_REG_DTTM', 'WAF_ID', 'ZDDFRONTMEAN_01_AFS2']
 ).interactive()
 
 # Streamlit에 차트 출력
