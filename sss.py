@@ -46,20 +46,20 @@ df_final = df_filtered_date[df_filtered_date['WAF_ID'] == selected_waf]
 if df_final.empty:
     st.warning("선택한 WAF_ID에 대한 데이터가 없습니다.")
 else:
-    # --- 📊 Altair 차트 (ZDDFRONTMEAN_01_AFS2 vs Pred) ---
-    chart = alt.Chart(df_final).transform_fold(
-        ['ZDDFRONTMEAN_01_AFS2', 'pred'], 
-        as_=['Variable', 'Value']  # "변수" 대신 "Variable"로 변경
-    ).mark_line(point=True).encode(
+    # ✅ 📌 Altair 시각화를 위한 데이터 변환
+    df_melted = df_final.melt(id_vars=['HST_REG_DTTM'], value_vars=['ZDDFRONTMEAN_01_AFS2', 'pred'], var_name='Variable', value_name='Value')
+
+    # ✅ 📊 Altair 차트 (ZDDFRONTMEAN_01_AFS2 vs Pred)
+    chart = alt.Chart(df_melted).mark_line(point=True).encode(
         x=alt.X('HST_REG_DTTM:T', title="날짜"),
         y=alt.Y('Value:Q', title="값"),
-        color=alt.Color('Variable:N', title="변수 종류"),  # "변수" 대신 "Variable:N"으로 변경
+        color=alt.Color('Variable:N', title="변수 종류"),  # 데이터 타입을 명확하게 설정
         tooltip=['HST_REG_DTTM', 'Variable', 'Value']
     ).properties(title=f'📊 {selected_waf} - ZDDFRONTMEAN_01_AFS2 vs Pred')
 
     # 그래프 출력
     st.altair_chart(chart, use_container_width=True)
 
-    # --- 📋 선택한 WAF_ID의 데이터 테이블 ---
+    # ✅ 📋 선택한 WAF_ID의 데이터 테이블
     st.markdown(f"### 📋 {selected_waf}의 상세 데이터")
     st.dataframe(df_final)
