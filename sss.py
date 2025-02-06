@@ -1,57 +1,48 @@
-import os
-import datetime
-import paramiko
-from datetime import datetime, timedelta
-from argparse import ArgumentParser
-import sys
+['WAF_ID',
+ 'SLOT_NO',
+ 'RECIPE_ID',
+ 'AVG_ROTATION_SPEED_AT_CH_MOTIONCTRL_ROTATION_RVEL_STEP_MEAN',
+ 'BLOWER_AIR_BOTTOM_PRESSURE_BOTTOM_AT_CHA_STEP_MEAN',
+ 'BLOWER_AIR_PRESSURE_AT_CHA_STEP_MEAN',
+ 'CURRENT_FLOW_AT_CH_GASPANEL_STICK01_MFC_RFLOW_STEP_MEAN',
+ 'CURRENT_FLOW_AT_CH_GASPANEL_STICK02_MFC_RFLOW_STEP_MEAN',
+ 'CURRENT_FLOW_AT_CH_GASPANEL_STICK03_MFC_RFLOW_STEP_MEAN',
+ 'CURRENT_FLOW_AT_CH_GASPANEL_STICK04_MFC_RFLOW_STEP_MEAN',
+ 'CURRENT_FLOW_AT_CH_GASPANEL_STICK05_MFC_RFLOW_STEP_MEAN',
+ 'CURRENT_FLOW_AT_CH_GASPANEL_STICK06_MFC_RFLOW_STEP_MEAN',
+ 'LIFT_TORQUE_AT_CHA_MOTIONCTRL_LIFT_RTORQUE_STEP_MEAN',
+ 'PRESSURE_AT_BUFFER_VACSYS_PRESSGAUGE_RPRESSURE_STEP_MEAN',
+ 'PRESSURE_AT_CH_MAN1000T_RPRESSURE_STEP_MEAN',
+ 'SCR_POWER_AT_CH_TEMPCTRL_HEATER_TOP_INNER_RPOWER_STEP_MEAN',
+ 'SCR_POWER_AT_CH_TEMPCTRL_HEATER_TOP_OUTER_RPOWER_STEP_MEAN',
+ 'SCR_POWER_AT_CH_TEMPCTRL_HEATER_BOTTOM_INNER_RPOWER_STEP_MEAN',
+ 'SCR_POWER_AT_CH_TEMPCTRL_HEATER_BOTTOM_OUTER_RPOWER_STEP_MEAN',
+ 'TEMPERATURE_READING_AT_CH_TEMPCTRL_HEATER_BOTTOM_PYROMETER_RTEMP_STEP_MEAN',
+ 'TEMPERATURE_READING_AT_CH_TEMPCTRL_HEATER_EDGE_PYROMETER_RTEMP_STEP_MEAN',
+ 'TEMPERATURE_READING_AT_CH_TEMPCTRL_HEATER_TOP_PYROMETER_RTEMP_STEP_MEAN',
+ 'VP_ACCUSET_IN_STEP_MEAN',
+ 'VP_ACCUSET_OUT_STEP_MEAN',
+ 'VP_MULTIRUN_ORDER_STEP_MEAN',
+ 'VP_RCP_CNT_STEP_MAX',
+ 'VP_SUSCEPTORHEIGHT_STEP_MAX',
+ 'VP_RCP_CNT2_STEP_MAX',
+ 'CH_SAVED_TRAINED_EXTENDED_EXTENSION_B1_STEP_MEAN',
+ 'CH_SAVED_TRAINED_EXTENDED_ROTATION_B1_STEP_MEAN',
+ 'ACTUAL_SPEED_AT_CH_TEMPCTRL_HEATER_BOTTOM_VSB_RSPEED_STEP_MEAN',
+ 'ACTUAL_SPEED_AT_CH_TEMPCTRL_HEATER_TOP_VSB_RSPEED_STEP_MEAN',
+ 'HST_REG_DTTM',
+ 'SFQR_AFS2',
+ 'ESFQR2_MAX_AFS2',
+ 'ZDDFRONTMEAN_01_AFS2',
+ 'ESFQD_ZONE1MEAN_AFS2',
+ 'ESFQD2_ZONE1MEAN_AFS2',
+ 'SFQR_AFS2_SUB',
+ 'ESFQR2_MAX_AFS2_SUB',
+ 'ZDDFRONTMEAN_01_AFS2_SUB',
+ 'ESFQD_ZONE1MEAN_AFS2_SUB',
+ 'ESFQD2_ZONE1MEAN_AFS2_SUB',
+ 'EQP_ID_MODULE_NAME']
 
-# Jupyter Notebook에서 실행할 때 sys.argv 문제 해결
-if "--f" in sys.argv:
-    sys.argv = [sys.argv[0]]  # Jupyter 자동 추가 인수 제거
 
-parser = ArgumentParser()
-parser.add_argument('--date', type=str, help="조회할 날짜 입력 (예: 24_06_01)")
-args, unknown = parser.parse_known_args()
 
-# 오늘 날짜 가져오기 (기본값: 오늘 날짜)
-today_date = args.date if args.date else datetime.today().strftime("%y_%m_%d")
-
-# SSH 설정
-host = "10.150.9.121" 
-port = 22 
-userId = "sksl_ds02"  
-password = 'sksl_ds02!'  
-
-SSH_Client = paramiko.SSHClient()
-SSH_Client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-SSH_Client.connect(
-    hostname=host,
-    port=port,
-    username=userId,
-    password=password,
-    look_for_keys=False
-)
-
-sftp_client = SSH_Client.open_sftp()
-
-# ✅ 3개월 전까지 조회하도록 변경
-x_dir_list = []
-
-for i in range(3):  # 3개월 전까지 반복
-    month_date = datetime.strptime(today_date, '%y_%m_%d') - timedelta(weeks=4 * i)  # 한 달씩 감소
-    month_folder = month_date.strftime('%y_%m')  # "YY_MM" 형식으로 변환
-
-    remote_x_path = f'/home/sksl_ds02/ANALYSIS_DATA_SET/X_TEMP/3200_WIRE_SAW/{month_folder}'
-    
-    try:
-        dirs = sftp_client.listdir(remote_x_path)
-        x_dir_list.extend(dirs)
-        print(f"📂 {month_folder} 폴더에서 {len(dirs)}개 디렉토리 가져옴")
-    except FileNotFoundError:
-        print(f"⚠️ {month_folder} 폴더 없음 (건너뜀)")
-
-sftp_client.close()
-SSH_Client.close()
-
-# 결과 출력
-print(f"\n📌 총 {len(x_dir_list)}개 디렉토리 조회 완료")
+csv 파일에 위에 열 이름만 들고 와줘.
