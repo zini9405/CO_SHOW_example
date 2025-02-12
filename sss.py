@@ -1,21 +1,63 @@
 import pandas as pd
-import os
-import glob
 
-# 24_01_x 디렉토리 경로
-dir_path = "24_01_x"
+# 파일 불러오기
+y_6300 = pd.read_csv('6300_y_24_01_combined.csv', columns=['WAFER_ID', 'GBIR_AFS2'])
+y_6900 = pd.read_csv('6900_24_01_combined.csv', columns=['WAFER_ID', 'GBIR_AFS2'])
+x_6300 = pd.read_csv('24_01_x_combined.csv')
+A = pd.read_csv('dataset/GBIR_20240110_A동_Sheet1.csv', usecols=['WAF_ID'])
+B = pd.read_csv('dataset/GBIR_20240110_B동_Sheet1.csv', usecols=['WAF_ID'])
 
-# 디렉토리 내 모든 parquet 파일 리스트 가져오기
-parquet_files = glob.glob(os.path.join(dir_path, "*.parquet"))
+# 컬럼 이름 변경
+y_6300.rename(columns={'GBIR_AFS2': '6300_GBIR_AFS2'}, inplace=True)
+y_6900.rename(columns={'GBIR_AFS2': '6900_GBIR_AFS2'}, inplace=True)
 
-# 모든 parquet 파일을 읽어 하나의 DataFrame으로 병합
-df_list = [pd.read_parquet(file) for file in parquet_files]
-combined_df = pd.concat(df_list, ignore_index=True)
+# 컬럼명 통일 (WAFER_ID → WAF_ID)
+y_6300.rename(columns={'WAFER_ID': 'WAF_ID'}, inplace=True)
+y_6900.rename(columns={'WAFER_ID': 'WAF_ID'}, inplace=True)
+
+# 5개 데이터셋을 기준으로 WAF_ID가 모두 존재하는 값만 선택
+merged_df = (
+    x_6300[['WAF_ID']]
+    .merge(y_6300, on='WAF_ID', how='inner')
+    .merge(y_6900, on='WAF_ID', how='inner')
+    .merge(A, on='WAF_ID', how='inner')
+    .merge(B, on='WAF_ID', how='inner')
+)
 
 # 결과 확인
-print(f"병합된 데이터 개수: {len(combined_df)}")
-print(combined_df.head())
+print(merged_df.head())
 
-# CSV 또는 Parquet로 저장 (선택사항)
-combined_df.to_parquet("24_01_x_combined.parquet", index=False)  # Parquet 저장
-# combined_df.to_csv("24_01_x_combined.csv", index=False)  # CSV 저장 (필요시)
+# CSV 저장 (필요하면 주석 해제)
+# merged_df.to_csv('merged_data.csv', index=False)
+
+import pandas as pd
+
+# 파일 불러오기
+y_6300 = pd.read_csv('6300_y_24_01_combined.csv', columns=['WAFER_ID', 'GBIR_AFS2'])
+y_6900 = pd.read_csv('6900_24_01_combined.csv', columns=['WAFER_ID', 'GBIR_AFS2'])
+x_6300 = pd.read_csv('24_01_x_combined.csv')
+A = pd.read_csv('dataset/GBIR_20240110_A동_Sheet1.csv', usecols=['WAF_ID'])
+B = pd.read_csv('dataset/GBIR_20240110_B동_Sheet1.csv', usecols=['WAF_ID'])
+
+# 컬럼 이름 변경
+y_6300.rename(columns={'GBIR_AFS2': '6300_GBIR_AFS2'}, inplace=True)
+y_6900.rename(columns={'GBIR_AFS2': '6900_GBIR_AFS2'}, inplace=True)
+
+# 컬럼명 통일 (WAFER_ID → WAF_ID)
+y_6300.rename(columns={'WAFER_ID': 'WAF_ID'}, inplace=True)
+y_6900.rename(columns={'WAFER_ID': 'WAF_ID'}, inplace=True)
+
+# 5개 데이터셋을 기준으로 WAF_ID가 모두 존재하는 값만 선택
+merged_df = (
+    x_6300[['WAF_ID']]
+    .merge(y_6300, on='WAF_ID', how='inner')
+    .merge(y_6900, on='WAF_ID', how='inner')
+    .merge(A, on='WAF_ID', how='inner')
+    .merge(B, on='WAF_ID', how='inner')
+)
+
+# 결과 확인
+print(merged_df.head())
+
+# CSV 저장 (필요하면 주석 해제)
+# merged_df.to_csv('merged_data.csv', index=False)
