@@ -1,53 +1,25 @@
-다음은 각 장비의 품질을 예측하고 서로 다른 장비 간 차이를 분석하는 연구 논문입니다.
+다음은 장비 품질 예측, 장비 간 차이 분석, 그리고 Tool-to-Tool Matching(TTTM) 관련 논문의 제목과 링크입니다.
+	1.	Prediction of Surface Location Error by Time Finite Element Analysis and Euler Integration
+	•	https://www.academia.edu/download/41397731/884.pdf
+	2.	Scenario for a Yield Model Based on Reliable Defect Density Data and Linked to Advanced Process Control
+	•	https://iopscience.iop.org/article/10.1149/1.2195679/meta
+	3.	Feature Construction for Dense Inline Data in Semiconductor Manufacturing Processes
+	•	https://www.sciencedirect.com/science/article/pii/S2405896316324739
+	4.	Virtual Metrology Modeling for Plasma Etch Operations
+	•	https://ieeexplore.ieee.org/abstract/document/5235105/
+	5.	Machine Learning for Tool Induced Shift (TIS) Reduction: An HVM Case Study
+	•	https://www.spiedigitallibrary.org/conference-proceedings-of-spie/11611/116110E/Machine-learning-for-Tool-Induced-Shift-TIS-reduction–an/10.1117/12.2590247.short
+	6.	Optical Overlay Measurement Accuracy Improvement with Machine Learning
+	•	https://www.spiedigitallibrary.org/conference-proceedings-of-spie/11325/113251Z/Optical-Overlay-measurement-accuracy-improvement-with-Machine-Learning/10.1117/12.2551850.short
+	7.	Chamber Matching in Semiconductor Manufacturing Using Statistical Analysis and Run-to-Run Control
+	•	https://dspace.mit.edu/handle/1721.1/107544
+	8.	Machine Learning Classification for Tool Life Modeling Using Production Shop-Floor Tool Wear Data
+	•	https://www.sciencedirect.com/science/article/pii/S2351978919309217
+	9.	Run-to-Run Control and Performance Monitoring of Overlay in Semiconductor Manufacturing
+	•	https://www.sciencedirect.com/science/article/pii/S0967066103001540
+	10.	Capability Profile of Hard Cutting and Grinding Processes
 
-1. 기계 학습을 활용한 기어 표면 열화 예측 및 분석
-	•	저자: M Gu, Y Li, Y Wang, S Wen, J Li
-	•	요약:
-이 연구는 베이지안 네트워크와 시계열 모델을 사용하여 다양한 장비 유형에서 기어 표면 열화를 예측하고, 각각의 성능 차이를 분석합니다.
-	•	논문 링크: 보기
+	•	https://www.sciencedirect.com/science/article/pii/S0007850607600183
 
-2. IoT 및 기계 학습을 이용한 장비 품질 평가 및 차이 분석
-	•	저자: S Dubey, S Dubey, K Raghuwanshi
-	•	요약:
-IoT 센서와 기계 학습을 결합하여 다양한 장비의 품질을 평가하고, 각 장비 유형별 특성을 비교 분석한 연구입니다.
-	•	논문 링크: 보기
-
-3. 물리적 감지 기술과 기계 학습을 활용한 장비 유형별 차이 분석
-	•	저자: C Bai, K Ma
-	•	요약:
-이 연구는 다양한 장비의 동작 특성을 센서로 감지하고, 기계 학습을 적용하여 장비 유형별 차이를 분석하는 방법을 제안합니다.
-	•	논문 링크: 보기
-
-4. 트랜스포머 기반 신경망을 활용한 장비 성능 예측
-	•	저자: N Harris, C Gonzalez Viejo
-	•	요약:
-트랜스포머 기반 신경망 모델을 이용해 다양한 장비에서의 품질 예측 성능을 비교하고, 각 장비 유형 간 차이를 분석하는 연구입니다.
-	•	논문 링크: 보기
-
-5. 머신 러닝을 이용한 장비 내구성 예측 및 비교
-	•	저자: M Schäfer, U Faltings, B Glaser
-	•	요약:
-기계 학습을 사용하여 장비의 내구성을 예측하고, 서로 다른 장비 간 품질 차이를 분석하는 연구입니다.
-	•	논문 링크: 보기
-
-6. 장비의 피로 내성 예측 및 장비 간 차이 분석
-	•	저자: A Aslan, A Tartici
-	•	요약:
-장비의 피로 내성을 장기간 측정하고, 서로 다른 장비에서의 피로 저항성을 비교 분석하는 연구입니다.
-	•	논문 링크: 보기
-
-7. 기계 학습을 활용한 장비 예측 모델의 최적화
-	•	저자: S Dawn
-	•	요약:
-다양한 기계 학습 모델을 비교하여 장비 품질을 예측하고, 장비 간 차이를 설명하는 최적의 방법을 찾는 연구입니다.
-	•	논문 링크: 보기
-
-8. 기계 학습과 물리 기반 모델을 활용한 장비 성능 분석
-	•	저자: PM Zolla
-	•	요약:
-물리 기반 시뮬레이션과 기계 학습을 결합하여 장비 성능을 예측하고, 장비 유형별 성능 차이를 분석합니다.
-	•	논문 링크: 보기
-
-이 논문들은 기계 학습, 센서 데이터 분석, 트랜스포머 신경망, 베이지안 네트워크, 피로 내성 측정 등 다양한 방법을 활용하여 장비 품질을 예측하고 장비 간 차이를 분석하는 연구를 다루고 있습니다.
-
-추가로 필요한 정보가 있으면 말씀해주세요!
+위 논문들은 **장비 품질 예측, 장비 간 차이 분석, 그리고 Tool-to-Tool Matching(TTTM)**을 다루고 있습니다.
+추가적인 정보가 필요하시면 알려주세요!
