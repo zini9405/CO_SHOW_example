@@ -1,47 +1,40 @@
 import pandas as pd
-import pickle
+import matplotlib.pyplot as plt
 
-# 새 데이터에 대해 동일한 scaler 사용
-def standardize_new_data(new_df, scaler_path):
-    # 저장된 스케일러 불러오기 (dict 형태)
-    with open(scaler_path, 'rb') as f:
-        scaler = pickle.load(f)
+# CSV 파일 불러오기
+df = pd.read_csv('standardized_data.csv')
 
-    # 표준화 제외할 열
-    exclude_columns = ['BASE_DT', 'EQP_ID', 'WAF_ID', '6900_GBIR_AFS2']
+# 📌 특정 열 선택 (예: 'PAD_TEMP_STEP_MEAN')
+column_name = 'PAD_TEMP_STEP_MEAN'
 
-    # 숫자형 열 중 제외할 열을 제외한 리스트
-    numerical_columns = [col for col in new_df.select_dtypes(include=['number']).columns if col not in exclude_columns]
-    
-    # 표준화 적용 (X_scaled = (X - mean) / scale)
-    new_df_standardized = new_df.copy()
-    
-    for col in numerical_columns:
-        if col in scaler:
-            mean = scaler[col]['mean']
-            scale = scaler[col]['scale']
-            new_df_standardized[col] = (new_df[col] - mean) / scale  # 직접 표준화 수식 적용
+# 그래프 크기 설정
+plt.figure(figsize=(12, 5))
 
-    return new_df_standardized
+# 1️⃣ 히스토그램 (데이터 분포 확인)
+plt.subplot(1, 3, 1)
+plt.hist(df[column_name], bins=30, edgecolor='black', alpha=0.7)
+plt.title(f'Histogram of {column_name}')
+plt.xlabel(column_name)
+plt.ylabel('Frequency')
 
-# 사용 예시
-csv_file = 'new_data.csv'
-scaler_path = 'scalers.pkl'
+# 2️⃣ 박스플롯 (이상치 확인)
+plt.subplot(1, 3, 2)
+plt.boxplot(df[column_name], vert=True)
+plt.title(f'Boxplot of {column_name}')
+plt.ylabel(column_name)
 
-# 데이터 불러오기
-df = pd.read_csv(csv_file)
+# 3️⃣ 시계열 그래프 (시간에 따른 변화, BASE_DT가 있는 경우)
+if 'BASE_DT' in df.columns:
+    df['BASE_DT'] = pd.to_datetime(df['BASE_DT'])  # 날짜 변환
+    df_sorted = df.sort_values(by='BASE_DT')  # 날짜 정렬
 
-# 표준화 적용
-df = standardize_new_data(df, scaler_path)
+    plt.subplot(1, 3, 3)
+    plt.plot(df_sorted['BASE_DT'], df_sorted[column_name], marker='o', linestyle='-')
+    plt.title(f'Time Series of {column_name}')
+    plt.xlabel('Date')
+    plt.ylabel(column_name)
+    plt.xticks(rotation=45)  # 날짜 라벨 회전
 
-# 6900_GBIR_AFS2 NaN 제거
-df = df.dropna(subset=['6900_GBIR_AFS2'])
-
-# NaN 값 0으로 채우기
-df.fillna(0, inplace=True)
-
-# 결과 확인
-print(df.head())
-
-# 저장 (필요하면 주석 해제)
-# df.to_csv('standardized_data.csv', index=False)
+# 그래프 출력
+plt.tight_layout()
+plt.show()
