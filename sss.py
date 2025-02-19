@@ -1,39 +1,35 @@
+그래도 안되네...
+front.py
+
 import streamlit as st
 
-# 📌 현재 페이지 상태 관리 (초기값 설정)
-if 'selected_page' not in st.session_state:
-    st.session_state['selected_page'] = None  # 선택된 페이지 초기화
 
-if 'pred_page' not in st.session_state:
-    st.session_state['pred_page'] = None  # pred 페이지 상태 초기화
 
-# 📌 상태 초기화 함수 (불필요한 세션 데이터 제거)
-def reset_state():
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]  # 모든 세션 키 삭제 (완전 초기화)
-    st.session_state['selected_page'] = None
-    st.session_state['pred_page'] = None
+main = st.Page('main.py',title='Main', default=True)
 
-with col34:
-    # 📌 SFQR 버튼 클릭
-    is_SFQR_clicked = st.button(label='SFQR', use_container_width=True)
-    if is_SFQR_clicked:
-        reset_state()  # 기존 세션 초기화
-        st.session_state['selected_page'] = 'SFQR'  # SFQR 선택 상태 저장
-        st.switch_page(f'./pages/SFQR.py')
+ws = st.Page('pages/wiresaw.py',title='Wire Saw')
+ws1 = st.Page('pages/wiresaw_eqp.py',title='Wire Saw EQP')
+ws2 = st.Page('pages/wiresaw_warp.py',title='Wire Saw Warp')
 
-    # 📌 ZDD 버튼 클릭
-    is_ZDD_clicked = st.button(label='ZDD', use_container_width=True)
-    if is_ZDD_clicked:
-        reset_state()  # 기존 세션 초기화
-        st.session_state['selected_page'] = 'ZDD'  # ZDD 선택 상태 저장
-        st.switch_page(f'./pages/ZDD.py')
 
-# 📌 SFQR_pred.py 및 ZDD_pred.py 실행 전에 상태 체크
-if st.session_state.get('selected_page') == 'SFQR' and st.session_state.get('pred_page') is None:
-    st.session_state['pred_page'] = 'SFQR_pred'
-    st.switch_page(f'./pages/SFQR_pred.py')
+epi = st.Page('pages/SFQR.py',title='SFQR Analysis')
+epi2 = st.Page('pages/ZDD.py',title='ZDD Analysis')
+epi3 = st.Page('pages/SFQR_pred.py',title='SFQR Quality')
+epi4 = st.Page('pages/ZDD_pred.py',title='ZDD Quality')
 
-elif st.session_state.get('selected_page') == 'ZDD' and st.session_state.get('pred_page') is None:
-    st.session_state['pred_page'] = 'ZDD_pred'
-    st.switch_page(f'./pages/ZDD_pred.py')
+DSP_Analysis = st.Page('pages/GBIR.py',title='GBIR Qnalysis')
+DSP_quality = st.Page('pages/GBIR_pred.py',title='GBIR Quality')
+
+pg = st.navigation({
+    'Main': [main],
+    'Wire Saw': [ws, ws1, ws2], 
+    'DSP Analysis': [DSP_Analysis],
+    'DSP Quality': [DSP_quality],
+    'EPI Analysis': [epi, epi2],
+    'EPI quality': [epi3, epi4]
+})
+
+pg.run()
+
+여기가 문제인가?
+ZDD Quality클릭하고 SFQR Quality클릭하면 되는데 그 뒤로 ZDD Analysi 등 나머지 클릭하면 안돼
