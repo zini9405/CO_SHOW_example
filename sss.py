@@ -1,58 +1,44 @@
 import streamlit as st
 
-# 📌 현재 페이지 상태 관리 (초기값 설정)
+# 📌 현재 페이지 상태 관리 (없으면 기본값 설정)
 if 'current_page' not in st.session_state:
     st.session_state['current_page'] = 'Main'  # 기본 페이지
 
 # 📌 상태 초기화 함수 (불필요한 세션 데이터 제거)
 def reset_state():
+    keys_to_keep = ['current_page']  # 'current_page'만 유지하고 나머지 초기화
     for key in list(st.session_state.keys()):
-        del st.session_state[key]  # 모든 세션 키 삭제 (완전 초기화)
-    st.session_state['current_page'] = 'Main'
+        if key not in keys_to_keep:
+            del st.session_state[key]
 
-# 📌 페이지 네비게이션 버튼 추가
-st.sidebar.title("Navigation")
+# 📌 페이지 객체 생성 (기존 코드 유지)
+main = st.Page('main.py', title='Main', default=True)
 
-# 📌 페이지 이동 함수
-def go_to_page(page_name, file_name):
-    reset_state()
-    st.session_state['current_page'] = page_name
-    st.switch_page(file_name)
+ws = st.Page('pages/wiresaw.py', title='Wire Saw')
+ws1 = st.Page('pages/wiresaw_eqp.py', title='Wire Saw EQP')
+ws2 = st.Page('pages/wiresaw_warp.py', title='Wire Saw Warp')
 
-# 📌 페이지 이동 버튼 추가
-if st.sidebar.button("SFQR Analysis"):
-    go_to_page('SFQR Analysis', 'pages/SFQR.py')
+epi = st.Page('pages/SFQR.py', title='SFQR Analysis')
+epi2 = st.Page('pages/ZDD.py', title='ZDD Analysis')
+epi3 = st.Page('pages/SFQR_pred.py', title='SFQR Quality')
+epi4 = st.Page('pages/ZDD_pred.py', title='ZDD Quality')
 
-if st.sidebar.button("ZDD Analysis"):
-    go_to_page('ZDD Analysis', 'pages/ZDD.py')
+DSP_Analysis = st.Page('pages/GBIR.py', title='GBIR Analysis')
+DSP_quality = st.Page('pages/GBIR_pred.py', title='GBIR Quality')
 
-if st.sidebar.button("SFQR Quality"):
-    go_to_page('SFQR Quality', 'pages/SFQR_pred.py')
+# 📌 네비게이션 객체 생성 (기존 코드 유지)
+pg = st.navigation({
+    'Main': [main],
+    'Wire Saw': [ws, ws1, ws2], 
+    'DSP Analysis': [DSP_Analysis],
+    'DSP Quality': [DSP_quality],
+    'EPI Analysis': [epi, epi2],  # SFQR/ZDD Analysis
+    'EPI Quality': [epi3, epi4],  # SFQR/ZDD Quality
+})
 
-if st.sidebar.button("ZDD Quality"):
-    go_to_page('ZDD Quality', 'pages/ZDD_pred.py')
+# 📌 페이지 전환 시 상태 초기화 적용 (기존 구조 유지)
+if st.session_state['current_page'] in ['SFQR Analysis', 'ZDD Analysis', 'SFQR Quality', 'ZDD Quality']:
+    reset_state()  # 이전 상태 초기화
 
-if st.sidebar.button("GBIR Analysis"):
-    go_to_page('GBIR Analysis', 'pages/GBIR.py')
-
-if st.sidebar.button("GBIR Quality"):
-    go_to_page('GBIR Quality', 'pages/GBIR_pred.py')
-
-# 📌 현재 선택된 페이지에 따라 자동 전환
-if st.session_state['current_page'] == 'SFQR Analysis':
-    st.switch_page('pages/SFQR.py')
-
-elif st.session_state['current_page'] == 'ZDD Analysis':
-    st.switch_page('pages/ZDD.py')
-
-elif st.session_state['current_page'] == 'SFQR Quality':
-    st.switch_page('pages/SFQR_pred.py')
-
-elif st.session_state['current_page'] == 'ZDD Quality':
-    st.switch_page('pages/ZDD_pred.py')
-
-elif st.session_state['current_page'] == 'GBIR Analysis':
-    st.switch_page('pages/GBIR.py')
-
-elif st.session_state['current_page'] == 'GBIR Quality':
-    st.switch_page('pages/GBIR_pred.py')
+# 📌 네비게이션 실행 (기존 코드 유지)
+pg.run()
