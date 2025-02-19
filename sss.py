@@ -9,13 +9,15 @@ def reset_state():
     st.session_state.clear()
     st.session_state['current_page'] = None
 
-with st.sidebar:
+with col34:
+    # 📌 SFQR 버튼 클릭
     is_SFQR_clicked = st.button(label='SFQR', use_container_width=True)
     if is_SFQR_clicked:
         reset_state()  # 이전 상태 초기화
         st.session_state['current_page'] = 'SFQR'
         st.switch_page(f'./pages/SFQR.py')
 
+    # 📌 ZDD 버튼 클릭
     is_ZDD_clicked = st.button(label='ZDD', use_container_width=True)
     if is_ZDD_clicked:
         reset_state()  # 이전 상태 초기화
