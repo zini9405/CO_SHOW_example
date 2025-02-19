@@ -1,9 +1,49 @@
-AttributeError: 'StreamlitPage' object has no attribute 'current_page'
-Traceback:
-File "C:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\streamlit\runtime\scriptrunner\exec_code.py", line 88, in exec_func_with_error_handling
-    result = func()
-             ^^^^^^
-File "C:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\streamlit\runtime\scriptrunner\script_runner.py", line 579, in code_to_exec
-    exec(code, module.__dict__)
-File "C:\Users\SKsiltron\Desktop\smart_final\smart-tttm\front.py", line 40, in <module>
-    if st.session_state['current_page'] != pg.current_page:
+import streamlit as st
+
+# 📌 현재 페이지 상태 관리 (초기값 설정)
+if 'current_page' not in st.session_state:
+    st.session_state['current_page'] = 'Main'  # 기본 페이지
+
+# 📌 상태 초기화 함수 (불필요한 세션 데이터 제거)
+def reset_state():
+    keys_to_keep = ['current_page']  # 'current_page'만 유지하고 나머지 초기화
+    for key in list(st.session_state.keys()):
+        if key not in keys_to_keep:
+            del st.session_state[key]
+
+# 📌 페이지 객체 생성 (기존 코드 유지)
+main = st.Page('main.py', title='Main', default=True)
+
+ws = st.Page('pages/wiresaw.py', title='Wire Saw')
+ws1 = st.Page('pages/wiresaw_eqp.py', title='Wire Saw EQP')
+ws2 = st.Page('pages/wiresaw_warp.py', title='Wire Saw Warp')
+
+epi = st.Page('pages/SFQR.py', title='SFQR Analysis')
+epi2 = st.Page('pages/ZDD.py', title='ZDD Analysis')
+epi3 = st.Page('pages/SFQR_pred.py', title='SFQR Quality')
+epi4 = st.Page('pages/ZDD_pred.py', title='ZDD Quality')
+
+DSP_Analysis = st.Page('pages/GBIR.py', title='GBIR Analysis')
+DSP_quality = st.Page('pages/GBIR_pred.py', title='GBIR Quality')
+
+# 📌 네비게이션 객체 생성 (기존 코드 유지)
+pg = st.navigation({
+    'Main': [main],
+    'Wire Saw': [ws, ws1, ws2], 
+    'DSP Analysis': [DSP_Analysis],
+    'DSP Quality': [DSP_quality],
+    'EPI Analysis': [epi, epi2],  # SFQR/ZDD Analysis
+    'EPI Quality': [epi3, epi4],  # SFQR/ZDD Quality
+})
+
+# 📌 현재 선택된 페이지를 session_state에 저장하여 추적
+if 'selected_page' not in st.session_state:
+    st.session_state['selected_page'] = 'Main'  # 초기화
+
+# 📌 사용자가 다른 페이지로 이동할 경우 상태 초기화
+if st.session_state['selected_page'] != st.session_state['current_page']:
+    reset_state()
+    st.session_state['current_page'] = st.session_state['selected_page']  # 현재 페이지 업데이트
+
+# 📌 네비게이션 실행 (기존 코드 유지)
+pg.run()
