@@ -6,7 +6,8 @@ if 'current_page' not in st.session_state:
 
 # 📌 상태 초기화 함수 (클릭 시 기존 정보 제거)
 def reset_state():
-    st.session_state.clear()
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
     st.session_state['current_page'] = None
 
 with col34:
