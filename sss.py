@@ -1,8 +1,8 @@
-def train_val_split_sequential(dataset, val_ratio=0.2):
-    val_size = int(len(dataset) * val_ratio)
-    train_size = len(dataset) - val_size
-    
-    train_dataset = dataset[:train_size]  # 앞부분을 train으로
-    val_dataset = dataset[train_size:]  # 뒷부분을 val로
-    
-    return train_dataset, val_dataset
+
+A meta-learning approach for determining the number of clusters with consideration of nearest neighbors
+
+Convergence analysis of connection center evolution and faster clustering
+
+Graph-based density peak merging for identifying multi-peak clusters
+
+Temporal Peak-Management and Clustering System for Sustainable Learning With Application to the Excimer Laser Annealing Process
