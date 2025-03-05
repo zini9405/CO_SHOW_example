@@ -1,13 +1,21 @@
-a.csv 파일에 name이라는 열에 동일한 값이 있어. 하지만 code열은 달라 그리고 나머지 열은 다른 값을 가져. 그래서 나는 이걸 한 행으로 표현하고 싶어서 code열 값을 나머지 열 이름 앞에 추가해서 새로운 열을 만들거야.
+import pandas as pd
 
-예시) 
-name code var1 var2 var3 ...
-abc a 1 2, 4
-abc b 1.1, 2.2, 4.4
-abc c 2.3, 4.5, 1.3
+# CSV 파일 읽기
+df = pd.read_csv("a.csv")
 
-이걸 
-name a_code a_var1 a_var2 a_var3, b_var1, b_var2, b_var3 
-abc a, 1, 2, 4 1.1, 2.2, 4.4
+# 변환할 새로운 데이터프레임 생성
+result = df.groupby("name").apply(lambda group: group.drop(columns=["name"]).set_index("code").stack())\
+          .unstack(level=[1, 2])
 
-이런식으로 만들고 싶어 코드 구현해줘.
+# 새로운 열 이름을 생성 (code 값을 포함)
+result.columns = [f"{code}_{col}" for col, code in result.columns]
+
+# 인덱스 초기화
+result.reset_index(inplace=True)
+
+# 결과 저장
+result.to_csv("transformed_a.csv", index=False)
+
+# 변환된 데이터프레임 출력
+import ace_tools as tools
+tools.display_dataframe_to_user(name="Transformed Data", dataframe=result)
