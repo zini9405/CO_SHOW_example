@@ -1,30 +1,28 @@
-ValueError                                Traceback (most recent call last)
-Cell In[28], line 13
-     10 data = pd.read_csv(os.path.join(base_path, sfqr))
-     11 # 변환할 새로운 데이터프레임 생성
-     12 result = data.groupby("SUBLOT_ID").apply(lambda group: group.drop(columns=["SUBLOT_ID"]).set_index("MTRL_ITEM_CODE").stack())\
----> 13     .unstack(level=[1, 2])
-     15 # 새로운 열 이름을 생성 (code 값을 포함)
-     16 result.columns = [f"{code}_{col}" for col, code in result.columns]
+import pandas as pd
 
-File c:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\core\series.py:4615, in Series.unstack(self, level, fill_value, sort)
-   4570 """
-   4571 Unstack, also known as pivot, Series with MultiIndex to produce DataFrame.
-   4572 
-   (...)
-   4611 b    2    4
-   4612 """
-   4613 from pandas.core.reshape.reshape import unstack
--> 4615 return unstack(self, level, fill_value, sort)
+# CSV 파일 읽기
+data = pd.read_csv("a.csv")
 
-File c:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\core\reshape\reshape.py:494, in unstack(obj, level, fill_value, sort)
-    490 if isinstance(level, (tuple, list)):
-    491     if len(level) != 1:
-    492         # _unstack_multiple only handles MultiIndexes,
-    493         # and isn't needed for a single level
-...
---> 210     raise ValueError("Index contains duplicate entries, cannot reshape")
-    212 self.group_index = comp_index
-    213 self.mask = mask
+# 데이터를 변환 (MTRL_ITEM_CODE를 컬럼명으로 확장)
+result = data.groupby("SUBLOT_ID").agg(lambda x: list(x) if x.name != "MTRL_ITEM_CODE" else x).reset_index()
 
-ValueError: Index contains duplicate entries, cannot reshape
+# 새로운 컬럼 생성: MTRL_ITEM_CODE별 변수 값 매칭
+final_data = pd.DataFrame({"SUBLOT_ID": result["SUBLOT_ID"]})
+
+for idx, row in result.iterrows():
+    sublot_id = row["SUBLOT_ID"]
+    codes = row["MTRL_ITEM_CODE"]  # code 열 값들
+    for code in codes:
+        for col in data.columns:
+            if col not in ["SUBLOT_ID", "MTRL_ITEM_CODE"]:
+                new_col_name = f"{code}_{col}"
+                if new_col_name not in final_data:
+                    final_data[new_col_name] = None
+                final_data.at[idx, new_col_name] = row[col]
+
+# 결과 저장
+final_data.to_csv("transformed_a.csv", index=False)
+
+# 변환된 데이터프레임 출력
+import ace_tools as tools
+tools.display_dataframe_to_user(name="Transformed Data", dataframe=final_data)
