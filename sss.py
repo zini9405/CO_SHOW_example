@@ -1,21 +1,10 @@
-import pandas as pd
+import os
 
-# 원본 CSV 파일명
-input_file = "FDC_Y.csv"
-output_prefix = "final/split_x_"  # 저장할 파일명 접두사
-chunk_size = 100000  # 한 번에 읽을 행 개수 (조절 가능)
+# 특정 디렉토리 경로 설정
+directory = "your_directory_path_here"  # 불러올 디렉토리 경로로 변경하세요
 
-df_b = pd.read_csv("filtered_const_data.csv")
+# 디렉토리에서 .txt 파일만 필터링하여 리스트 생성
+txt_files = [f for f in os.listdir(directory) if f.endswith(".txt")]
 
-# CSV를 청크 단위로 읽고 저장
-for i, chunk in enumerate(pd.read_csv(input_file, chunksize=chunk_size)):
-    chunk = chunk.drop(columns=['Unnamed: 0', 'Unnamed: 0.1', 'index'])
-    output_file = f"{output_prefix}{i+1}.csv"  
-    merged_df = df_b.merge(chunk, on="SUBLOT_ID", how="outer")
-    merged_df.to_csv(output_file, index=False)
-    print(f"저장 완료: {output_file}")
-
-print("모든 청크 저장 완료!")
-
-
-이 코드에서     merged_df = df_b.merge(chunk, on="SUBLOT_ID", how="outer") 두 조건이 맞는 행만 저장하는 코드로 수정해줘
+# 결과 출력
+print(txt_files)
