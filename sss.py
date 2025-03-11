@@ -1,61 +1,71 @@
-# Main 실행
-def main():
-    # === 1. STEP.csv 불러오기 ===
-    file_path = "STEP.csv"  # 파일 경로 설정
-    scaler_path = 'scalers_.pkl'
-    df = pd.read_csv(file_path, encoding="utf-8")
-    
-    df = df.dropna(subset=['GBIR_AFS2'])
+---------------------------------------------------------------------------
+RuntimeError                              Traceback (most recent call last)
+Cell In[56], line 61
+     59 if __name__ == "__main__":
+     60     set_seed(42)
+---> 61     main()
 
-    df.fillna(0, inplace=True)
+Cell In[56], line 48
+     45 save_path = "model_weights_GBIR_25312.pth"
+     46 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+---> 48 train_model_inputs(
+     49     model=model,
+     50     train_loader=train_loader,
+     51     val_loader=val_loader,
+     52     criterion=nn.HuberLoss(delta=1.0),
+     53     optimizer=optimizer,
+     54     num_epochs=2000,
+     55     device=device,
+     56     save_path=save_path
+     57 )
 
-    df.dropna(axis=0)
+Cell In[54], line 16
+     12 batch_features, batch_eqp_ids, batch_labels = zip(*batch_)
+     13 batch_features, batch_eqp_ids, batch_labels = (
+     14     torch.stack(batch_features).to(device), torch.stack(batch_eqp_ids).to(device), torch.stack(batch_labels).to(device)
+     15 )
+---> 16 outputs, attention_scores = model(batch_features, batch_eqp_ids)
+     17 # print('batch_labels', batch_labels)
+     18 loss = criterion(outputs.squeeze(), batch_labels)
 
-    # === 2. BASE_DT, WAF_ID, STEP_ID 정렬 ===
-    df = df.sort_values(by=["BASE_DT", "WAF_ID", "STEP_ID"], ascending=[True, True, True])
+File c:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\torch\nn\modules\module.py:1532, in Module._wrapped_call_impl(self, *args, **kwargs)
+   1530     return self._compiled_call_impl(*args, **kwargs)  # type: ignore[misc]
+   1531 else:
+-> 1532     return self._call_impl(*args, **kwargs)
 
-    df = standardize_new_data(df, scaler_path)
+File c:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\torch\nn\modules\module.py:1541, in Module._call_impl(self, *args, **kwargs)
+   1536 # If we don't have any hooks, we want to skip the rest of the logic in
+   1537 # this function, and just call forward.
+   1538 if not (self._backward_hooks or self._backward_pre_hooks or self._forward_hooks or self._forward_pre_hooks
+   1539         or _global_backward_pre_hooks or _global_backward_hooks
+   1540         or _global_forward_hooks or _global_forward_pre_hooks):
+-> 1541     return forward_call(*args, **kwargs)
+   1543 try:
+   1544     result = None
 
-    # === 3. EQP_ID를 숫자로 변환 (임베딩할 예정) ===
-    if "EQP_ID" in df.columns:
-        eqp_encoder = LabelEncoder()
-        df["EQP_ID"] = eqp_encoder.fit_transform(df["EQP_ID"])
-    else:
-        eqp_encoder = None
+Cell In[14], line 88
+     87 def forward(self, features, eqp_ids):
+---> 88     feature_embed = self.feature_embedding(features)
+     90     eqp_embed = self.eqp_embedding(eqp_ids).unsqueeze(1)  # (batch_size, 1, d_model)
+     92     combined_features = feature_embed + eqp_embed  # Combine feature and equipment embeddings
 
-    # === 4. 필요없는 열 제거 ===
-    drop_columns = ["GBIR_AFS2", "WAF_ID", "BASE_DT", "PAD_TEMP_STEP_MEAN"]
-    feature_columns = [col for col in df.columns if col not in drop_columns]
+File c:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\torch\nn\modules\module.py:1532, in Module._wrapped_call_impl(self, *args, **kwargs)
+   1530     return self._compiled_call_impl(*args, **kwargs)  # type: ignore[misc]
+   1531 else:
+-> 1532     return self._call_impl(*args, **kwargs)
 
-    # === 5. 90:10 비율로 train/test 데이터 분할 ===
-    waf_ids = df["WAF_ID"].unique()
-    train_ids, val_ids = train_test_split(waf_ids, test_size=0.1, shuffle=False)  # 순서 유지
-    train_df = df[df["WAF_ID"].isin(train_ids)]
-    val_df = df[df["WAF_ID"].isin(val_ids)]
+File c:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\torch\nn\modules\module.py:1541, in Module._call_impl(self, *args, **kwargs)
+   1536 # If we don't have any hooks, we want to skip the rest of the logic in
+   1537 # this function, and just call forward.
+   1538 if not (self._backward_hooks or self._backward_pre_hooks or self._forward_hooks or self._forward_pre_hooks
+   1539         or _global_backward_pre_hooks or _global_backward_hooks
+   1540         or _global_forward_hooks or _global_forward_pre_hooks):
+-> 1541     return forward_call(*args, **kwargs)
+   1543 try:
+   1544     result = None
 
-    # === 7. Dataset 및 DataLoader 생성 ===
-    train_dataset = WaferDataset(train_df, eqp_encoder, feature_columns)
-    val_dataset = WaferDataset(val_df, eqp_encoder, feature_columns)
+File c:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\torch\nn\modules\linear.py:116, in Linear.forward(self, input)
+    115 def forward(self, input: Tensor) -> Tensor:
+--> 116     return F.linear(input, self.weight, self.bias)
 
-    train_loader = DataLoader(train_dataset, batch_size=512, shuffle=True, collate_fn=lambda x: x)
-    val_loader = DataLoader(val_dataset, batch_size=512, shuffle=False, collate_fn=lambda x: x)      
-
-    model = FullMultiLevelTransformer(input_dim=1, eqp_vocab_size=len(set(df["EQP_ID"])), d_model=256, nhead=4, num_layers=4, dim_feedforward=512)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
-    save_path = "model_weights_GBIR_25312.pth"
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    train_model_inputs(
-        model=model,
-        train_loader=train_loader,
-        val_loader=val_loader,
-        criterion=nn.HuberLoss(delta=1.0),
-        optimizer=optimizer,
-        num_epochs=2000,
-        device=device,
-        save_path=save_path
-    )
-
-if __name__ == "__main__":
-    set_seed(42)
-    main()
+RuntimeError: mat1 and mat2 shapes cannot be multiplied (4608x28 and 1x256)
