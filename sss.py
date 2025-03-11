@@ -1,36 +1,13 @@
-import os
-import pandas as pd
-import chardet
-from collections import defaultdict
+6100_process 디렉토리
+6300_process 디렉토리
+const_dataset_process 디렉토리
+각 디렉토리에 24_01, 24_02, 24_03, ... 25_02까지 csv 파일이 존재해.
 
-directory = "const_dataset"
+3개의 디렉토리를 확인하고 csv 파일명이 같으면, 6300_process 디렉토리의 csv 파일은 WAFER_ID, GBIR_AFS2열만 추출함.
+6100_process의 csv 파일의 WAF_ID열과 6300_process 디렉토리의 csv 파일의 WAFER_ID(WAF_ID)과 동일한 행만 합쳐서 선택함.
+그리고 6100_process과 6300_process 합쳐진 데이터 파일의 WAF_ID와 const_dataset_process 디렉토리의 csv 파일 WAF_ID랑 동일한 행을 합쳐서 최종파일로 만들어줘.
 
-files_grouped = defaultdict(list)
-
-for file in os.listdir(directory):
-    if file.endswith(".csv"):
-        prefix = "_".join(file.split("_")[:2])
-        files_grouped[prefix].append(file)
-
-for date_prefix, files in files_grouped.items():
-    dataframes = []
-    
-    for file in files:
-        file_path = os.path.join(directory, file)
-        
-        # 인코딩 자동 감지
-        with open(file_path, 'rb') as f:
-            raw_data = f.read()
-        encoding_detected = chardet.detect(raw_data)['encoding']
-
-        # CSV 파일 읽기
-        df = pd.read_csv(file_path, encoding=encoding_detected, errors='replace')
-        dataframes.append(df)
-
-    merged_df = pd.concat(dataframes, ignore_index=True)
-
-    output_file = os.path.join(directory, f"{date_prefix}.csv")
-    merged_df.to_csv(output_file, index=False)
-    print(f"저장 완료: {output_file}")
-
-print("모든 파일 병합 완료!")
+예시) 6100_process의 24_01, 6300_process의 24_01, const_dataset_process의 24_01을 선택함.
+6300_process의 24_01 csv 파일 WAFER_ID, GBIR_AFS2열만 추출함.
+6100_process의 24_01 csv 파일  WAF_ID열과 6300_process 24_01 csv 파일의 WAFER_ID(WAF_ID)과 동일한 행만 합쳐서 선택함(com_x).
+그리고 (com_x) WAF_ID열 값과 const_dataset_process 24_01 csv 파일의  WAF_ID열 값과 동일한 행을 합쳐서 최종파일로 만들어줘.
