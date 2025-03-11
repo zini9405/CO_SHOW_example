@@ -19,10 +19,10 @@ train_df = df[df["WAF_ID"].isin(train_ids)]
 val_df = df[df["WAF_ID"].isin(val_ids)]
 
 # === 4. 데이터 전처리 ===
-# 필요 없는 열 제거
+# 제거할 열 목록 (label 및 불필요한 열)
 drop_columns = ["GBIR_AFS2", "WAF_ID", "BASE_DT", "PAD_TEMP_STEP_MEAN"]
 if "EQP_ID" in df.columns:
-    drop_columns.remove("EQP_ID")  # EQP_ID는 변환해야 하므로 제거 목록에서 제외
+    drop_columns.remove("EQP_ID")  # EQP_ID는 변환해야 하므로 제거 X
 
 # EQP_ID를 숫자로 변환 (임베딩할 예정)
 eqp_encoder = LabelEncoder()
@@ -53,7 +53,10 @@ class WaferDataset(Dataset):
         data = group_df[self.feature_columns].values
         data = torch.tensor(data, dtype=torch.float32)  # (L, 변수 개수)
 
-        return data, torch.tensor(eqp_id, dtype=torch.long)  # (L, 변수 개수), EQP_ID
+        # Label (GBIR_AFS2) 값 가져오기
+        label = torch.tensor(group_df["GBIR_AFS2"].iloc[0], dtype=torch.float32)  # (1)
+
+        return data, torch.tensor(eqp_id, dtype=torch.long), label  # (L, 변수 개수), EQP_ID, (1)
 
 # === 6. Dataset 및 DataLoader 생성 ===
 train_dataset = WaferDataset(train_df, eqp_encoder)
@@ -69,13 +72,15 @@ eqp_embedding = torch.nn.Embedding(num_eqp_ids, embedding_dim)
 
 # === 8. 데이터 로더 테스트 ===
 for batch in train_loader:
-    batch_data, batch_eqp_ids = zip(*batch)  # 데이터 분리
+    batch_data, batch_eqp_ids, batch_labels = zip(*batch)  # 데이터 분리
     batch_data = torch.nn.utils.rnn.pad_sequence(batch_data, batch_first=True)  # 패딩 적용
     batch_eqp_ids = torch.stack(batch_eqp_ids)
+    batch_labels = torch.stack(batch_labels)
 
     # EQP_ID를 임베딩 벡터로 변환
     eqp_embedded = eqp_embedding(batch_eqp_ids)
 
     print(f"입력 데이터 크기: {batch_data.shape}")  # (B, L, 변수 개수)
     print(f"임베딩 크기: {eqp_embedded.shape}")  # (B, embedding_dim)
+    print(f"Label 크기: {batch_labels.shape}")  # (B, 1)
     break  # 한 batch만 확인
