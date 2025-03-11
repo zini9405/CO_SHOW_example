@@ -1,1 +1,5 @@
-WAF_ID열을 그룹화 해서 동일한STEP_ID 값이 있으면 하나의 값만 나오게 해줘.
+   if "STEP_ID" in df.columns:
+                df = df.drop_duplicates(subset=["WAF_ID", "STEP_ID"], keep="first")
+
+            # 파일 저장
+            output
