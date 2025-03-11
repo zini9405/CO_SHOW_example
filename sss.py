@@ -19,8 +19,8 @@ if "EQP_ID" in df.columns:
 else:
     eqp_encoder = None
 
-# === 4. 필요없는 열 제거 ===
-drop_columns = ["GBIR_AFS2", "WAF_ID", "BASE_DT", "PAD_TEMP_STEP_MEAN"]
+# === 4. 필요없는 열 제거 (batch_data에서는 EQP_ID도 제거) ===
+drop_columns = ["GBIR_AFS2", "WAF_ID", "BASE_DT", "PAD_TEMP_STEP_MEAN", "EQP_ID"]  # EQP_ID 제거
 feature_columns = [col for col in df.columns if col not in drop_columns]
 
 # === 5. 90:10 비율로 train/test 데이터 분할 ===
@@ -54,14 +54,14 @@ class WaferDataset(Dataset):
             for i in range(len(group_df) - self.window_size + 1):
                 window = group_df.iloc[i : i + self.window_size]
                 
-                # Feature 값 추출 (L, feature 수)
+                # Feature 값 추출 (L, feature 수), EQP_ID는 제외
                 data = window[self.feature_columns].values
-                data = torch.tensor(data, dtype=torch.float32)
+                data = torch.tensor(data, dtype=torch.float32)  # (9, feature 수)
 
-                # Label 값 (마지막 row의 GBIR_AFS2 값 사용)
-                label = torch.tensor(window["GBIR_AFS2"].iloc[-1], dtype=torch.float32)
+                # Label 값 (마지막 row의 GBIR_AFS2 값 사용, 소수점 9자리 유지)
+                label = torch.tensor(float(f"{window['GBIR_AFS2'].iloc[-1]:.9f}"), dtype=torch.float64)
 
-                # EQP_ID 값 (첫 번째 row 기준)
+                # EQP_ID 값 (첫 번째 row 기준, 임베딩용)
                 eqp_id = torch.tensor(window["EQP_ID"].iloc[0], dtype=torch.long)
 
                 data_windows.append((data, eqp_id, label))
@@ -99,4 +99,5 @@ for batch in train_loader:
     print(f"입력 데이터 크기: {batch_data.shape}")  # (B, 9, feature 수)
     print(f"임베딩 크기: {eqp_embedded.shape}")  # (B, embedding_dim)
     print(f"Label 크기: {batch_labels.shape}")  # (B, 1)
+    print(f"Label 예시 (소수점 9자리 유지): {batch_labels[:5]}")
     break  # 한 batch만 확인
