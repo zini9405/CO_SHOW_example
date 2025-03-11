@@ -503,4 +503,7 @@ for batch in train_loader:
     print(f"Label 예시 (소수점 9자리 유지): {batch_labels[:5]}")
     break  # 한 batch만 확인
 
-WaferDataset에 맞는 transformer encoder 코드로 변경해줘.
+WaferDataset에 맞는 transformer encoder 코드로 변경해줘. 
+입력 데이터 크기: torch.Size([32, 9, 27])
+임베딩 크기: torch.Size([32, 256])
+Label 크기: torch.Size([32])
