@@ -30,7 +30,7 @@ columns_to_keep = [
     "LOWER_COOLING_FLOW_STEP_MEAN", "LOWER_MOTOR_CURRENT_STEP_MEAN",
     "LOWER_RPM_ACTUAL_STEP_MEAN", "PRS_PRES_ACTUAL__STEP_COUNT",
     "PAD_COUNT", "SLURRY_USE_NUM", "DD_USE_NUM", "MAIN_RUNTIME",
-    "CARRIER_MTL_USE_NUM", "GBIR_AFS2", "step"  # step 추가
+    "CARRIER_MTL_USE_NUM", "GBIR_AFS2", "step"
 ]
 
 # 필터링할 step 값
@@ -66,10 +66,14 @@ for file_name in tqdm(os.listdir(input_dir), desc="파일 처리 진행"):
             else:
                 print(f"[경고] {file_name}: 'step' 컬럼 없음, 필터링 건너뜀.")
 
-            # WAF_ID별 step 값이 {2, 3, 4, 6, 7}을 모두 포함하는 경우만 유지
+            # WAF_ID별 step 값이 {2, 3, 4, 6, 7}만 포함하는 경우만 유지
             if "WAF_ID" in df.columns and "step" in df.columns:
-                waf_valid = df.groupby("WAF_ID")["step"].apply(lambda x: set(x.dropna()) >= valid_steps)
-                valid_waf_ids = waf_valid[waf_valid].index
+                waf_group = df.groupby("WAF_ID")["step"].apply(set)  # WAF_ID별 step 값 집합 생성
+
+                # 올바른 WAF_ID 선택 (valid_steps만 포함하고, 다른 값(예: 5)이 없을 것)
+                valid_waf_ids = waf_group[(waf_group.apply(lambda x: x.issubset(valid_steps))) & 
+                                          (waf_group.apply(lambda x: x >= valid_steps))].index
+
                 df = df[df["WAF_ID"].isin(valid_waf_ids)]
             else:
                 print(f"[경고] {file_name}: 'WAF_ID' 또는 'step' 컬럼 없음, 필터링 건너뜀.")
