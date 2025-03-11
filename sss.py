@@ -1,46 +1,31 @@
-import os
-import pandas as pd
+merged_dataset_process 디렉토리에 csv 파일들이 있어.
 
-# 디렉토리 경로 설정
-dir_6100 = "6100_process"
-dir_6300 = "6300_process"
-dir_const = "const_dataset_process"
-output_dir = "merged_dataset_process"
+CREATE_CODE == 'FS' 필터링 / 6300_GBIR_AFS2 열에서 NaN 값 제거
+EQP_ID_x열 값에 
+[BPDPD100	BPDPD101	BPDPD102	BPDPD103	BPDPD104	BPDPD105	BPDPD106	BPDPD107	BPDPD108	BPDPD109	BPDPD111	BPDPD112	BPDPD113	BPDPD114	BPDPD115	BPDPD116	BPDPD117	BPDPD118	BPDPD119	BPDPD74	BPDPD80	BPDPD81	BPDPD82	BPDPD83	BPDPD84	BPDPD85	BPDPD86	BPDPD87	BPDPD88	BPDPD89	BPDPD90	BPDPD91	BPDPD92	BPDPD93	BPDPD94	BPDPD95	BPDPD96	BPDPD97	BPDPD98	BPDPD99
+]만 추출함
 
-# 저장 디렉토리 생성
-os.makedirs(output_dir, exist_ok=True)
+columns_to_keep = [
+    'BASE_DT', 'EQP_ID_x', 'WAF_ID', 'SLOT_NO_x', 'RECIPE_ID',
+    'INTERNLA_GEAR_RPM_ACTUAL_STEP_MEAN', 'PAD_TEMP_STEP_MEAN',
+    'RING_GEAR_MOTOR_CURRENT_STEP_MEAN', 'SLURRY_1_FLOW_STEP_MEAN',
+    'SLURRY_IN_TEMP_STEP_MEAN', 'SUN_GEAR_MOTOR_CURRENT_STEP_MEAN',
+    'SUN_GEAR_RPM_ACTUAL_STEP_MEAN', 'SURFACTANT_FLOW_ACTUAL_STEP_MEAN',
+    'PRS_PRES_ACTUAL__STEP_MEAN', 'UPPER_COOLING_IN_TEMP_STEP_MEAN',
+    'UPPER_COOLING_OUT_TEMP_STEP_MEAN', 'UPPER_COOLING_FLOW_STEP_MEAN',
+    'UPPER_MOTOR_CURRENT_STEP_MEAN', 'UPPER_RPM_ACTUAL_STEP_MEAN',
+    'LOWER_COOLING_IN_TEMP_STEP_MEAN', 'LOWER_COOLING_OUT_TEMP_STEP_MEAN',
+    'LOWER_COOLING_FLOW_STEP_MEAN', 'LOWER_MOTOR_CURRENT_STEP_MEAN',
+    'LOWER_RPM_ACTUAL_STEP_MEAN', 'PRS_PRES_ACTUAL__STEP_COUNT',
+    'PAD_COUNT', 'SLURRY_USE_NUM', 'DD_USE_NUM', 'MAIN_RUNTIME',
+    'CARRIER_MTL_USE_NUM', 'GBIR_AFS2'
+]
 
-# 공통된 파일 찾기
-files_6100 = set(os.listdir(dir_6100))
-files_6300 = set(os.listdir(dir_6300))
-files_const = set(os.listdir(dir_const))
+df = df[columns_to_keep]
 
-common_files = files_6100 & files_6300 & files_const  # 3개 디렉토리에 모두 존재하는 파일명 찾기
 
-for file_name in common_files:
-    try:
-        # 6300_process 데이터 로드 및 필터링
-        df_6300 = pd.read_csv(os.path.join(dir_6300, file_name), encoding="utf-8", low_memory=False)
-        df_6300_filtered = df_6300[['WAFER_ID', 'GBIR_AFS2']]
+컬럼명 변경 (EQP_ID_x → EQP_ID, SLOT_NO_x → SLOT_NO)
 
-        # 6100_process 데이터 로드
-        df_6100 = pd.read_csv(os.path.join(dir_6100, file_name), encoding="utf-8", low_memory=False)
+df = df.drop_duplicates(['WAF_ID'], keep = False)
 
-        # 6100_process와 6300_process 병합 (WAF_ID == WAFER_ID)
-        com_x = df_6100.merge(df_6300_filtered, left_on="WAF_ID", right_on="WAFER_ID", how="inner")
-
-        # const_dataset_process 데이터 로드
-        df_const = pd.read_csv(os.path.join(dir_const, file_name), encoding="utf-8", low_memory=False)
-
-        # 최종 병합 (WAF_ID 기준)
-        final_df = com_x.merge(df_const, on="WAF_ID", how="inner")
-
-        # 파일 저장
-        output_file = os.path.join(output_dir, file_name)
-        final_df.to_csv(output_file, index=False)
-        print(f"저장 완료: {output_file}")
-
-    except Exception as e:
-        print(f"파일 처리 오류: {file_name} - {e}")
-
-print("모든 파일 병합 완료!")
+파일 저장해줘.
