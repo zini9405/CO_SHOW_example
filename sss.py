@@ -1,10 +1,7 @@
 import pandas as pd
 
-# 파일 로드
-file_path = "X.csv"
-df = pd.read_csv(file_path)
+df = pd.read_csv('8048_8051_proc_only_CORR.csv')
 
-# 문자열 컬럼 목록
 text_columns = ['ANALYSIS_GROUP', 'SUBLOT', 'WAFER_ID', 'EQP_NM', 'DATE']
 
 # 숫자형 컬럼만 선택 (제거할 컬럼 제외)
