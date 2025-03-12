@@ -1,30 +1,42 @@
-MemoryError                               Traceback (most recent call last)
-Cell In[10], line 148
-    144     print("Variable Importance:", importance_dict)
-    147 if __name__ == "__main__":
---> 148     main()
+# === 3. EQP_ID를 숫자로 변환 (임베딩할 예정) ===
+if "EQP_ID" in df.columns:
+    eqp_encoder = LabelEncoder()
+    df["EQP_ID"] = eqp_encoder.fit_transform(df["EQP_ID"])
+else:
+    eqp_encoder = None
 
-Cell In[10], line 101
-     98 predictions, true_labels, attention_scores = test_model(model, train_loader_, device, save_path, train_loader.quantile_transformer)
-    100 # 그래프 출력
---> 101 correlation, predictions, true_labels = calculate_correlation(predictions, true_labels)
-    102 print(correlation)
-    103 print(predictions)
+array([ 3,  3,  3, ..., 28, 28, 28], dtype=int64) 결과 아래와 같이 나오게 해줘
 
-Cell In[10], line 46
-     43 true_labels = torch.tensor(true_labels).detach().cpu().numpy().reshape(-1, 1)
-     45 # 상관계수 계산
----> 46 correlation = np.corrcoef(true_labels, predictions)[0, 1]
-     47 print(f"Correlation Coefficient (True Labels vs Predictions): {correlation:.4f}")
-     48 return correlation, predictions, true_labels
 
-File c:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\lib\function_base.py:2889, in corrcoef(x, y, rowvar, bias, ddof, dtype)
-   2885 if bias is not np._NoValue or ddof is not np._NoValue:
-   2886     # 2015-03-15, 1.10
-   2887     warnings.warn('bias and ddof have no effect and are deprecated',
+
+{'BPDPD100': 0,
+ 'BPDPD101': 1,
+ 'BPDPD102': 2,
+ 'BPDPD103': 3,
+ 'BPDPD104': 4,
+ 'BPDPD105': 5,
+ 'BPDPD106': 6,
+ 'BPDPD107': 7,
+ 'BPDPD108': 8,
+ 'BPDPD109': 9,
+ 'BPDPD111': 10,
+ 'BPDPD112': 11,
+ 'BPDPD113': 12,
+ 'BPDPD114': 13,
+ 'BPDPD115': 14,
+ 'BPDPD116': 15,
+ 'BPDPD117': 16,
+ 'BPDPD118': 17,
+ 'BPDPD119': 18,
+ 'BPDPD74': 19,
+ 'BPDPD80': 20,
+ 'BPDPD81': 21,
+ 'BPDPD82': 22,
+ 'BPDPD83': 23,
+ 'BPDPD84': 24,
 ...
--> 2747 c = dot(X, X_T.conj())
-   2748 c *= np.true_divide(1, fact)
-   2749 return c.squeeze()
-
-MemoryError: Unable to allocate 862. GiB for an array with shape (340212, 340212) and data type float64
+ 'BPDPD95': 35,
+ 'BPDPD96': 36,
+ 'BPDPD97': 37,
+ 'BPDPD98': 38,
+ 'BPDPD99': 39}
