@@ -1,57 +1,6 @@
-import pandas as pd
-from sklearn.preprocessing import MinMaxScaler
+X.csv 파일에 EQP_NM하고 각 열에 빈갑이 존재하면 열값에 평균값으로 빈값 채우고 만약에 빈값만 있으면 0으로 채워줘.
+그리고 SFQR_AFS2 - SFQR_AFS2_SUB 값을 추가해줘. 열 이름은 SFQR
 
-# 파일 로드
-file_path = "x.csv"
-df = pd.read_csv(file_path)
-
-# 특정 열 저장 후 제거
-columns_to_remove = ['z', 'y', 'a']
-df_removed = df.drop(columns=[col for col in columns_to_remove if col in df.columns], errors='ignore')
-df_reserved = df[columns_to_remove]  # 제거된 열 저장
-
-# 숫자형 데이터만 선택 후 정규화 (Min-Max Scaling)
-df_numeric = df_removed.select_dtypes(include=['number'])
-scaler = MinMaxScaler()
-df_scaled = pd.DataFrame(scaler.fit_transform(df_numeric), columns=df_numeric.columns)
-
-# 분산 및 IQR 계산 (정규화된 데이터 기준)
-variance = df_scaled.var()
-iqr = df_scaled.quantile(0.75) - df_scaled.quantile(0.25)
-
-# 중위값(Median) 및 75% 이상(Q3) 계산
-variance_median = variance.median()
-variance_q3 = variance.quantile(0.75)
-
-iqr_median = iqr.median()
-iqr_q3 = iqr.quantile(0.75)
-
-# 변화가 있는 열 선택 (중위값 이상)
-changing_variance_cols = variance[variance >= variance_median].index.tolist()
-changing_iqr_cols = iqr[iqr >= iqr_median].index.tolist()
-
-# 변화가 큰 열 선택 (Q3 이상)
-high_variance_cols = variance[variance >= variance_q3].index.tolist()
-high_iqr_cols = iqr[iqr >= iqr_q3].index.tolist()
-
-# 변화가 있는 열 (중위값 이상 중 하나라도 해당)
-changing_cols = list(set(changing_variance_cols) | set(changing_iqr_cols))
-
-# 변화가 큰 열 (Q3 이상 중 하나라도 해당)
-high_changing_cols = list(set(high_variance_cols) | set(high_iqr_cols))
-
-# 원본 데이터에서 선택된 열만 유지
-df_final_changing = df_removed[changing_cols]
-df_final_high_changing = df_removed[high_changing_cols]
-
-# 원본 데이터의 z, y, a 열 다시 추가
-df_final_changing = pd.concat([df_final_changing, df_reserved], axis=1)
-df_final_high_changing = pd.concat([df_final_high_changing, df_reserved], axis=1)
-
-# 결과 저장
-df_final_changing.to_csv("changing_columns_with_zya.csv", index=False)
-df_final_high_changing.to_csv("high_changing_columns_with_zya.csv", index=False)
-
-# 결과 출력
-print(f"변화가 있는 열 (중위값 기준): {changing_cols}")
-print(f"변화가 큰 열 (Q3 기준): {high_changing_cols}")
+  아래 열은 제거 해줘.
+ESFQD_ZONE1MEAN_AFS2	ESFQD2_ZONE1MEAN_AFS2	ESFQR2_ZONE1MAX_AFS2	MEANSFQRFULLSITESONLY_AFS2	MAXSFQRFULLSITESONLY_AFS2	GBIR_AFS2	SFQR_AFS2	ZDDFRONTMEAN_01_AFS2	ZDDFRONTMEAN_05_AFS2	ZDDBACKMEAN_01_AFS2	ZDDBACKMEAN_05_AFS2	WARP_BF_AFS2	BOW_BF_AFS2	NANO_THA2_AFS2	NANO_THA4_AFS2	SITE_NT_PARTMAX_AFS2	DELTA_MEAN_SFQR_FULLSITE	DELTA_MAX_SFQR_FULLSITE	Delta_ESFQD2	Delta_SFQR	Delta_GBIR	Delta_ZDD	DELTA_SITE_NT	DELTA_WARP_BF_AFS2	DELTA_BOW_BF_AFS2	ESFQD_ZONE1MEAN_AFS2_SUB	ESFQD2_ZONE1MEAN_AFS2_SUB	MAXSFQRFULLSITESONLY_AFS2_SUB	MEANSFQRFULLSITESONLY_AFS2_SUB	NANO_THA2_AFS2_SUB	NANO_THA4_AFS2_SUB	GBIR_AFS2_SUB	SFQR_AFS2_SUB	BOW_BF_AFS2_SUB	WARP_BF_AFS2_SUB	ZDDBACKMEAN_01_AFS2_SUB	ZDDBACKMEAN_05_AFS2_SUB	ZDDFRONTMEAN_01_AFS2_SUB	ZDDFRONTMEAN_05_AFS2_SUB	SITE_NT_PARTMAX_AFS2_SUB
+코드 구현해줘.
