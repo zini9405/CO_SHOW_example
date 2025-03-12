@@ -396,3 +396,6 @@ def main():
 if __name__ == "__main__":
     set_seed(42)
     main()
+
+
+ㅇㅣ 코드로 학습하는데 loss가 안떨어지네
