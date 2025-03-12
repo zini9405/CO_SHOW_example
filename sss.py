@@ -1,2 +1,4 @@
-[1, 4, 5 ,6 ] 되면 * 3하면
-[1, 1, 1, 4, 4, 4, 5, 5, 5 , 6, 6, 6 ]로 만드는 코드 구현
+original_list = [1, 4, 5, 6]
+expanded_list = [item for item in original_list for _ in range(3)]
+
+print(expanded_list)
