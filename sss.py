@@ -1,29 +1,49 @@
-Cell In[17], line 31
-     28 numeric_columns = [col for col in df.columns if col not in text_columns and col not in columns_to_remove]
-     30 # EQP_NM 그룹별 평균값으로 결측치 채움
----> 31 df[numeric_columns] = df.groupby("EQP_NM")[numeric_columns].transform(lambda x: x.fillna(x.mean()))
-     33 # **모든 값이 NaN이었던 경우 0으로 채우기**
-     34 df[numeric_columns] = df[numeric_columns].fillna(0)
+import pandas as pd
 
-File c:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\core\groupby\generic.py:1815, in DataFrameGroupBy.transform(self, func, engine, engine_kwargs, *args, **kwargs)
-   1812 @Substitution(klass="DataFrame", example=__examples_dataframe_doc)
-   1813 @Appender(_transform_template)
-   1814 def transform(self, func, *args, engine=None, engine_kwargs=None, **kwargs):
--> 1815     return self._transform(
-   1816         func, *args, engine=engine, engine_kwargs=engine_kwargs, **kwargs
-   1817     )
+# 파일 로드
+file_path = "X.csv"
+df = pd.read_csv(file_path)
 
-File c:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\core\groupby\groupby.py:2021, in GroupBy._transform(self, func, engine, engine_kwargs, *args, **kwargs)
-   2018     warn_alias_replacement(self, orig_func, func)
-   2020 if not isinstance(func, str):
--> 2021     return self._transform_general(func, engine, engine_kwargs, *args, **kwargs)
-   2023 elif func not in base.transform_kernel_allowlist:
-   2024     msg = f"'{func}' is not a valid function name for transform(name)"
+# 문자열 컬럼 목록
+text_columns = ['ANALYSIS_GROUP', 'SUBLOT', 'WAFER_ID', 'EQP_NM', 'DATE']
 
-File c:\Users\SKsiltron\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\core\groupby\generic.py:1747, in DataFrameGroupBy._transform_general(self, func, engine, engine_kwargs, *args, **kwargs)
-...
-     47 def _sum(a, axis=None, dtype=None, out=None, keepdims=False,
-     48          initial=_NoValue, where=True):
----> 49     return umr_sum(a, axis, dtype, out, keepdims, initial, where)
+# 제거할 컬럼 목록
+columns_to_remove = [
+    "ESFQD_ZONE1MEAN_AFS2", "ESFQD2_ZONE1MEAN_AFS2", "ESFQR2_ZONE1MAX_AFS2", 
+    "MEANSFQRFULLSITESONLY_AFS2", "MAXSFQRFULLSITESONLY_AFS2", "GBIR_AFS2", "SFQR_AFS2",
+    "ZDDFRONTMEAN_01_AFS2", "ZDDFRONTMEAN_05_AFS2", "ZDDBACKMEAN_01_AFS2", "ZDDBACKMEAN_05_AFS2", 
+    "WARP_BF_AFS2", "BOW_BF_AFS2", "NANO_THA2_AFS2", "NANO_THA4_AFS2", "SITE_NT_PARTMAX_AFS2", 
+    "DELTA_MEAN_SFQR_FULLSITE", "DELTA_MAX_SFQR_FULLSITE", "Delta_ESFQD2", "Delta_SFQR", "Delta_GBIR", 
+    "Delta_ZDD", "DELTA_SITE_NT", "DELTA_WARP_BF_AFS2", "DELTA_BOW_BF_AFS2", "ESFQD_ZONE1MEAN_AFS2_SUB", 
+    "ESFQD2_ZONE1MEAN_AFS2_SUB", "MAXSFQRFULLSITESONLY_AFS2_SUB", "MEANSFQRFULLSITESONLY_AFS2_SUB", 
+    "NANO_THA2_AFS2_SUB", "NANO_THA4_AFS2_SUB", "GBIR_AFS2_SUB", "SFQR_AFS2_SUB", "BOW_BF_AFS2_SUB", 
+    "WARP_BF_AFS2_SUB", "ZDDBACKMEAN_01_AFS2_SUB", "ZDDBACKMEAN_05_AFS2_SUB", "ZDDFRONTMEAN_01_AFS2_SUB", 
+    "ZDDFRONTMEAN_05_AFS2_SUB", "SITE_NT_PARTMAX_AFS2_SUB"
+]
 
-TypeError: can only concatenate str (not "int") to str
+# 1️⃣ **문자열 컬럼 결측치 처리 (NaN → "Unknown")**
+for col in text_columns:
+    if col in df.columns:
+        df[col] = df[col].fillna("Unknown")  
+
+# 2️⃣ **숫자형 컬럼만 선택하여 EQP_NM별 평균 계산**
+numeric_columns = df.select_dtypes(include=['number']).columns.tolist()
+
+# EQP_NM 그룹별 평균값으로 결측치 채움
+df[numeric_columns] = df.groupby("EQP_NM")[numeric_columns].apply(lambda x: x.fillna(x.mean())).reset_index(drop=True)
+
+# **모든 값이 NaN이었던 경우 0으로 채우기**
+df[numeric_columns] = df[numeric_columns].fillna(0)
+
+# 3️⃣ **SFQR_AFS2 - SFQR_AFS2_SUB 값 계산하여 새로운 열 추가**
+if "SFQR_AFS2" in df.columns and "SFQR_AFS2_SUB" in df.columns:
+    df["SFQR"] = df["SFQR_AFS2"].astype(float) - df["SFQR_AFS2_SUB"].astype(float)
+
+# 4️⃣ **불필요한 열 제거**
+df = df.drop(columns=[col for col in columns_to_remove if col in df.columns], errors="ignore")
+
+# 5️⃣ **최종 데이터 저장**
+df.to_csv("processed_X_grouped.csv", index=False)
+
+# 완료 메시지 출력
+print("EQP_NM 기준으로 그룹화 후 데이터 처리 완료! 결과 파일: processed_X_grouped.csv")
