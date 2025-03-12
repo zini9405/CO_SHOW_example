@@ -4,16 +4,6 @@ import pandas as pd
 file_path = "X.csv"
 df = pd.read_csv(file_path)
 
-# 빈값 처리: 각 열에서 빈값을 평균으로 채우고, 빈값만 있는 경우 0으로 채움
-for col in df.columns:
-    if df[col].isna().all():
-        df[col] = 0  # 모든 값이 NaN이면 0으로 채움
-    else:
-        df[col] = df[col].fillna(df[col].mean())  # NaN을 평균값으로 채움
-
-# SFQR_AFS2 - SFQR_AFS2_SUB 값 계산하여 새로운 열 추가
-df["SFQR"] = df["SFQR_AFS2"] - df["SFQR_AFS2_SUB"]
-
 # 제거할 열 목록
 columns_to_remove = [
     "ESFQD_ZONE1MEAN_AFS2", "ESFQD2_ZONE1MEAN_AFS2", "ESFQR2_ZONE1MAX_AFS2", 
@@ -28,11 +18,26 @@ columns_to_remove = [
     "ZDDFRONTMEAN_05_AFS2_SUB", "SITE_NT_PARTMAX_AFS2_SUB"
 ]
 
-# 열 제거
+# EQP_NM 그룹 단위로 빈값 처리 함수
+def fill_missing_values(group):
+    for col in group.columns:
+        if group[col].isna().all():  
+            group[col] = 0  # 모든 값이 NaN이면 0으로 채움
+        else:
+            group[col] = group[col].fillna(group[col].mean())  # NaN을 그룹 평균값으로 채움
+    return group
+
+# EQP_NM 기준으로 그룹화 후 빈값 처리
+df = df.groupby("EQP_NM").apply(fill_missing_values)
+
+# SFQR_AFS2 - SFQR_AFS2_SUB 값 계산하여 새로운 열 추가
+df["SFQR"] = df["SFQR_AFS2"] - df["SFQR_AFS2_SUB"]
+
+# 불필요한 열 제거
 df = df.drop(columns=[col for col in columns_to_remove if col in df.columns], errors="ignore")
 
-# 결과 저장
-df.to_csv("processed_X.csv", index=False)
+# 최종 파일 저장
+df.to_csv("processed_X_grouped.csv", index=False)
 
 # 처리 완료 메시지 출력
-print("데이터 처리 완료! 결과 파일: processed_X.csv")
+print("EQP_NM 기준으로 그룹화 후 데이터 처리 완료! 결과 파일: processed_X_grouped.csv")
