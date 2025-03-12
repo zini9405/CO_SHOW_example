@@ -1,3 +1,5 @@
-df_6300 = pd.read_csv(dir_6300, encoding="utf-8", low_memory=False)
+# FIRST_FLOW_GROUP 값이 "FIRST"인 행만 필터링
+df_first = df_6300[df_6300["FIRST_FLOW_GROUP"] == "FIRST"]
 
-df_6300의 FIRST_FLOW_GROUP열 값이 FIRST인 값만 추출
+# 결과 출력
+print(df_first)
