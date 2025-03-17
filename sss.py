@@ -1,21 +1,30 @@
-KeyError                                  Traceback (most recent call last)
-Cell In[49], line 51
-     49 if __name__ == "__main__":
-     50     set_seed(42)
----> 51     main()
+import pickle
+import pandas as pd
 
-Cell In[49], line 11
-      7 EQP_ID_MODULE_NAME = set(df['EQP_NM'])
-      9 eqp_mapping = map_to_numeric(EQP_ID_MODULE_NAME)
----> 11 df = standardize_new_data(df, scaler_path)
-     13 df = df.sort_values(by=["DATE", "WAFER_ID"], ascending=[True, True])
-     15 df = df.dropna(subset=['Delta_SFQR'])
+def normalize_new_data(new_df, scaler_path):
+    # 저장된 스케일러 불러오기 (dict 형태)
+    with open(scaler_path, 'rb') as f:
+        scaler = pickle.load(f)
 
-Cell In[44], line 95
-     93 for col in numerical_columns:
-     94     if col in scaler:
----> 95         mean = scaler[col]['mean']
-     96         scale = scaler[col]['scale']
-     97         new_df_standardized[col] = (new_df[col] - mean) / scale  # 직접 표준화 수식 적용
+    # 정규화 제외할 열
+    exclude_columns = ['ANALYSIS_GROUP', 'SUBLOT', 'WAFER_ID', 'DATE', 'EQP_NM', 'Delta_SFQR', 'CL_HST_REG_DTTM']
 
-KeyError: 'mean'
+    # 숫자형 열 중 제외할 열을 제외한 리스트
+    numerical_columns = [col for col in new_df.select_dtypes(include=['number']).columns if col not in exclude_columns]
+    
+    # 정규화 적용 (X_scaled = (X - min) / (max - min))
+    new_df_normalized = new_df.copy()
+    
+    for col in numerical_columns:
+        if col in scaler:
+            if 'min' in scaler[col] and 'max' in scaler[col]:  # min/max 값이 존재하는 경우에만 변환
+                min_val = scaler[col]['min']
+                max_val = scaler[col]['max']
+                
+                # min과 max가 동일한 경우 0으로 설정 (안전 처리)
+                if max_val - min_val == 0:
+                    new_df_normalized[col] = 0
+                else:
+                    new_df_normalized[col] = (new_df[col] - min_val) / (max_val - min_val)
+
+    return new_df_normalized
