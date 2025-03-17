@@ -1,51 +1,21 @@
-import pandas as pd
-from sklearn.preprocessing import MinMaxScaler
-import numpy as np
-import pickle
+def standardize_new_data(new_df, scaler_path):
+    # 저장된 스케일러 불러오기 (dict 형태)
+    with open(scaler_path, 'rb') as f:
+        scaler = pickle.load(f)
 
-# 표준화 수행 시 사용한 scaler 저장할 딕셔너리
-scalers = {}
+    # 표준화 제외할 열
+    exclude_columns = ['ANALYSIS_GROUP', 'SUBLOT', 'WAFER_ID', 'DATE', 'EQP_NM', 'Delta_SFQR', 'CL_HST_REG_DTTM']
 
-# 원본 데이터 읽기
-df = pd.read_csv('processed_X_grouped.csv')
-
-# 표준화 제외할 열 정의
-exclude_columns = ['ANALYSIS_GROUP', 'SUBLOT', 'WAFER_ID', 'DATE', 'EQP_NM', 'Delta_SFQR', 'CL_HST_REG_DTTM']
-
-# 숫자형 열 중 제외할 열 제외
-numerical_columns = [col for col in df.select_dtypes(include=['number']).columns if col not in exclude_columns]
-
-# 숫자형 열만 대상으로 min/max 계산
-max_min_values = df[numerical_columns].agg(['min', 'max'])
-
-# 열별 최대/최소값 계산 및 10% 확장
-expanded_ranges = {
-    col: {
-        "min": max_min_values.loc['min', col] - (max_min_values.loc['min', col]) * 0.1,
-        "max": max_min_values.loc['max', col] + (max_min_values.loc['max', col]) * 0.1,
-    }
-    for col in numerical_columns
-}
-
-# 정규화(Normalization) 적용
-df_normalized = df.copy()
-for col in numerical_columns:
-    expanded_min = expanded_ranges[col]['min']
-    expanded_max = expanded_ranges[col]['max']
+    # 숫자형 열 중 제외할 열을 제외한 리스트
+    numerical_columns = [col for col in new_df.select_dtypes(include=['number']).columns if col not in exclude_columns]
     
-    # 범위 내에서만 정규화 수행
-    mask = (df[col] >= expanded_min) & (df[col] <= expanded_max)
+    # 표준화 적용 (X_scaled = (X - mean) / scale)
+    new_df_standardized = new_df.copy()
     
-    scaler = MinMaxScaler(feature_range=(0, 1))  # 0~1 범위로 변환
-    normalized_values = scaler.fit_transform(df.loc[mask, [col]])
-    df_normalized.loc[mask, col] = normalized_values
-    
-    # 열별로 사용한 scaler 저장
-    scalers[col] = {"min": scaler.data_min_[0], "max": scaler.data_max_[0]}
+    for col in numerical_columns:
+        if col in scaler:
+            mean = scaler[col]['mean']
+            scale = scaler[col]['scale']
+            new_df_standardized[col] = (new_df[col] - mean) / scale  # 직접 표준화 수식 적용
 
-# Scaler 정보 저장 (복원을 위해 사용)
-with open('scalers_SFQR_all.pkl', 'wb') as f:
-    pickle.dump(scalers, f)
-
-# 결과 출력
-print("스케일러 저장 완료: scalers_SFQR_all.pkl")
+    return new_df_standardized
