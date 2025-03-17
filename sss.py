@@ -1,57 +1,91 @@
-import pandas as pd
+['ANALYSIS_GROUP',
+ 'SUBLOT',
+ 'WAFER_ID',
+ 'EQP_NM',
+ 'DATE',
+ 'LIFT_PIN1-HEAD_DIA_3D',
+ 'LIFT_PIN1-BODY_DIA_3D',
+ 'LIFT_PIN1-TOTAL_LENGTH_3D',
+ 'LIFT_PIN1-HEAD_ROC_3D',
+ 'LIFT_PIN1-HEAD_ANGLE_3D',
+ 'LIFT_PIN1-HEAD_DIA',
+ 'LIFT_PIN1-BODY_DIA',
+ 'LIFT_PIN1-TOTAL_LENGTH',
+ 'LIFT_PIN1-HEAD_ROC',
+ 'LIFT_PIN1-HEAD_ANGLE',
+ 'LIFT_PIN2-HEAD_DIA_3D',
+ 'LIFT_PIN2-BODY_DIA_3D',
+ 'LIFT_PIN2-TOTAL_LENGTH_3D',
+ 'LIFT_PIN2-HEAD_ROC_3D',
+ 'LIFT_PIN2-HEAD_ANGLE_3D',
+ 'LIFT_PIN2-HEAD_DIA',
+ 'LIFT_PIN2-BODY_DIA',
+ 'LIFT_PIN2-TOTAL_LENGTH',
+ 'LIFT_PIN2-HEAD_ROC',
+ 'LIFT_PIN2-HEAD_ANGLE',
+ 'LIFT_PIN3-HEAD_DIA_3D',
+ 'LIFT_PIN3-BODY_DIA_3D',
+ 'LIFT_PIN3-TOTAL_LENGTH_3D',
+ 'LIFT_PIN3-HEAD_ROC_3D',
+ 'LIFT_PIN3-HEAD_ANGLE_3D',
+ 'LIFT_PIN3-HEAD_DIA',
+ 'LIFT_PIN3-BODY_DIA',
+ 'LIFT_PIN3-TOTAL_LENGTH',
+ 'LIFT_PIN3-HEAD_ROC',
+ 'LIFT_PIN3-HEAD_ANGLE',
+ 'UPPER_DOME-H1_3D',
+ 'UPPER_DOME-H2_3D',
+ 'SUS_SUP_SHAFT-ARM_LEN_B',
+ 'SUS_SUP_SHAFT-ARM_LEN_L',
+ 'SUS_SUP_SHAFT-ARM_LEN_R',
+ 'SUS_SUP_SHAFT-ARM_ANGL_B',
+ 'SUS_SUP_SHAFT-ARM_ANGL_L',
+ 'SUS_SUP_SHAFT-ARM_ANGL_R',
+ 'SUS_SUP_SHAFT-FLAT_A',
+ 'SUS_SUP_SHAFT-FLAT_B',
+ 'SUS_SUP_SHAFT-FLAT_L',
+ 'SUS_SUP_SHAFT-FLAT_R',
+ 'WAFER_LIFT_SHAFT-ARM_LEN_B',
+ 'WAFER_LIFT_SHAFT-ARM_LEN_L',
+ 'WAFER_LIFT_SHAFT-ARM_LEN_R',
+ 'WAFER_LIFT_SHAFT-ARM_ANGL_B',
+ 'WAFER_LIFT_SHAFT-ARM_ANGL_L',
+ 'WAFER_LIFT_SHAFT-ARM_ANGL_R',
+ 'WAVY_SUSCEP-SUSCEPTOR_D_3D',
+ 'WAVY_SUSCEP-CENTER_TO_P0_3D',
+ 'WAVY_SUSCEP-CENTER_TO_P110_3D',
+ 'WAVY_SUSCEP-CENTER_TO_P100_3D',
+ 'WAVY_SUSCEP-POCKET_HEIGHT_3D',
+ 'WAVY_SUSCEP-LEDGE_DISTANCE110_3D',
+ 'WAVY_SUSCEP-LEDGE_DISTANCE100_3D',
+ 'WAVY_SUSCEP-LEDGE_FLATNESS_3D',
+ 'WAVY_SUSCEP-LEDGE_ANGLE_3D',
+ 'WAVY_SUSCEP-INNER_DEPTH_AVG_3D',
+ 'WAVY_SUSCEP-INNER_DEPTH_RANGE_3D',
+ 'WAVY_SUSCEP-C_TO_LEDGE_D_3D',
+ 'WAVY_SUSCEP-CONCAVE_TO_ID_3D',
+ 'WAVY_SUSCEP-CENTER_TO_POCKET_0',
+ 'WAVY_SUSCEP-CENTER_TO_POCKET_100',
+ 'WAVY_SUSCEP-CENTER_TO_POCKET_110',
+ 'WAVY_SUSCEP-CONCAVE_TO_ID',
+ 'WAVY_SUSCEP-INNER_DEPTH',
+ 'WAVY_SUSCEP-LEDGE_HEIGHT',
+ 'WAVY_SUSCEP-POCKET_HEIGHT',
+ 'WAVY_SUSCEP-SUSCEPTOR_DISTANCE',
+ 'HOLED_SUSCEP-SUSCEPTOR_D_3D',
+ 'HOLED_SUSCEP-CENTER_TO_P0_3D',
+ 'HOLED_SUSCEP-CENTER_TO_P110_3D',
+ 'HOLED_SUSCEP-CENTER_TO_P100_3D',
+ 'HOLED_SUSCEP-POCKET_HEIGHT_3D',
+ 'HOLED_SUSCEP-LEDGE_HEIGHT_3D',
+ 'HOLED_SUSCEP-LEDGE_DISTANCE110_3D',
+ 'HOLED_SUSCEP-LEDGE_DISTANCE100_3D',
+ 'HOLED_SUSCEP-LEDGE_FLATNESS_3D',
+ 'HOLED_SUSCEP-LEDGE_ANGLE_3D',
+ 'HOLED_SUSCEP-INNER_DEPTH_AVG_3D',
+ 'HOLED_SUSCEP-INNER_DEPTH_RANGE_3D',
+ 'HOLED_SUSCEP-C_TO_LEDGE_D_3D',
+ 'HOLED_SUSCEP-CONCAVE_TO_ID_3D',
+ 'STEP_TIME_RMS_PROC',
 
-# CSV 파일 읽기
-df = pd.read_csv('x.csv', low_memory=False)
-
-# **1. 특정 값이 포함된 행만 필터링**
-filter_values = [
-    "SMNC_L40", "SEC BSI_6_5um_P+", "SEC_L4", 
-    "SMIC_L55", "HH wuxi", "GFs_14nm", "SMNC_L55"
-]
-df_filtered = df[df['ANALYSIS_GROUP'].isin(filter_values)].copy()
-
-# **2. DELTA_SFQR 제외하고 변동성이 낮은 열 삭제**
-exclude_columns = ["DELTA_SFQR"]
-numerical_columns = df_filtered.select_dtypes(include=['number']).columns.tolist()
-
-# **각 열의 값 범위(최대 - 최소) 계산**
-value_ranges = df_filtered[numerical_columns].max() - df_filtered[numerical_columns].min()
-
-# **값 범위에 따른 분산 임계값 설정**
-def determine_variance_threshold(value_range):
-    if value_range <= 0.001:
-        return 1e-8
-    elif value_range <= 0.01:
-        return 1e-6
-    elif value_range <= 0.1:
-        return 1e-4
-    elif value_range <= 1:
-        return 1e-3
-    elif value_range <= 10:
-        return 1e-2
-    elif value_range <= 100:
-        return 1e-1
-    elif value_range <= 1000:
-        return 1
-    else:
-        return 10  # 값이 매우 크다면 비교적 높은 분산값을 허용
-
-# **각 열의 분산 임계값을 결정하고 제거할 열 찾기**
-low_variance_columns = [
-    col for col in numerical_columns 
-    if col not in exclude_columns and df_filtered[col].var() < determine_variance_threshold(value_ranges[col])
-]
-
-# **낮은 변동성의 열 제거**
-df_filtered = df_filtered.drop(columns=low_variance_columns)
-
-# **3. 'DEPO'가 포함된 열만 선택**
-depo_columns = [col for col in df_filtered.columns if 'DEPO' in col]
-df_depo = df_filtered[depo_columns]
-
-# **결과 출력**
-print(f"삭제된 낮은 변동성의 열 개수: {len(low_variance_columns)}")
-print(f"DEPO 포함 열 개수: {len(depo_columns)}")
-
-# **필요하면 파일 저장**
-df_depo.to_csv('filtered_x.csv', index=False)
+ 과 DEPO가 포함된 열을 추가
