@@ -1,31 +1,30 @@
----------------------------------------------------------------------------
-RuntimeError                              Traceback (most recent call last)
-Cell In[16], line 78
-     76 if __name__ == "__main__":
-     77     set_seed(42)
----> 78     main()
+class CustomDataset(Dataset):
+    def __init__(self, df, eqp_mapping):
+        self.data = df
+        self.eqp_mapping = eqp_mapping
 
-Cell In[16], line 65
-     62 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-     63 criterion = nn.CrossEntropyLoss()
----> 65 train_model_inputs(
-     66     model=model,
-     67     train_loader=train_loader,
-     68     val_loader=val_loader,
-     69     criterion=criterion,
-     70     optimizer=optimizer,
-     71     num_epochs=2000,
-     72     device=device,
-     73     save_path=save_path
-     74 )
+        # 원래 연속형 라벨
+        raw_labels = self.data['6900_GBIR_AFS2'].values.reshape(-1, 1)  # shape: (num_samples, 1)
 
-Cell In[14], line 10
-      8 running_loss = 0.0
-      9 train_pbar = tqdm(train_loader, desc=f"Training Epoch {epoch + 1}/{num_epochs}")
----> 10 for batch_features, batch_eqp_ids, batch_labels in train_pbar:
-...
-    211     storage = elem._typed_storage()._new_shared(numel, device=elem.device)
-    212     out = elem.new(storage).resize_(len(batch), *list(elem.size()))
---> 213 return torch.stack(batch, 0, out=out)
+        # 정규화 후 중앙값 기준 이진화
+        self.quantile_transformer = QuantileTransformer(output_distribution='normal', random_state=42)
+        transformed = self.quantile_transformer.fit_transform(raw_labels).flatten()
 
-RuntimeError: stack expects each tensor to be equal size, but got [1249244, 32] at entry 0 and [1249244] at entry 1
+        # 중앙값 기준으로 0/1 이진 클래스 생성
+        threshold = np.median(transformed)
+        self.labels = (transformed > threshold).astype(np.int64)  # shape: (num_samples,)
+
+        # Feature
+        self.features = self.data.drop(columns=['BASE_DT', 'EQP_ID', 'WAF_ID', '6900_GBIR_AFS2']).values
+
+        # EQP ID
+        self.eqp_ids = self.data['EQP_ID'].map(eqp_mapping).values
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        features = torch.tensor(self.features[idx], dtype=torch.float32)
+        label = torch.tensor(self.labels[idx], dtype=torch.long)  # Must be scalar long
+        eqp_id = torch.tensor(self.eqp_ids[idx], dtype=torch.long)
+        return features, eqp_id, label
