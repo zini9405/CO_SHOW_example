@@ -1,8 +1,2 @@
-from torch.utils.data import Subset
-
-indices = list(range(len(dataset)))
-train_indices = indices[:train_size]
-val_indices = indices[train_size:]
-
-train_dataset = Subset(dataset, train_indices)
-val_dataset = Subset(dataset, val_indices)
+print(batch_features.shape, batch_eqp_ids.shape, batch_labels.shape)torch.Size([512, 32]) torch.Size([512]) torch.Size([512])
+print(outputs.shape) torch.Size([512, 2])
